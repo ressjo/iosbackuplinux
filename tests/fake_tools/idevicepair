@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+import _fake_common as c
+args = sys.argv[1:]
+udid = args[args.index("-u") + 1] if "-u" in args else c.udids()[0]
+if os.environ.get("FAKE_UNPAIRED") == "1":
+    print(f"ERROR: Please accept the trust dialog on the screen of device {udid}, then attempt to pair again.")
+    sys.exit(1)
+if "pair" in args:
+    print(f"SUCCESS: Paired with device {udid}")
+else:
+    print(f"SUCCESS: Validated pairing with device {udid}")

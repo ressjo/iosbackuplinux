@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+import os, plistlib, sys
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+import _fake_common as c
+args = sys.argv[1:]
+udid = args[args.index("-u") + 1] if "-u" in args else c.udids()[0]
+domain = args[args.index("-q") + 1] if "-q" in args else None
+if domain == "com.apple.disk_usage":
+    data = {"TotalDataCapacity": 255_000_000_000, "TotalDataAvailable": 143_500_000_000}
+elif domain == "com.apple.mobile.backup":
+    data = {"WillEncrypt": c.load_state()["encrypted"]}
+else:
+    data = c.device(udid)
+sys.stdout.write(plistlib.dumps(data).decode())

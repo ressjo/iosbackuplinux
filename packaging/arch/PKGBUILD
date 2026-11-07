@@ -1,0 +1,40 @@
+# Maintainer: Joshua Ress
+# Lokaler PKGBUILD: im Ordner packaging/arch "makepkg -si" ausführen.
+pkgname=iosbackuplinux
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Grafisches Backup & Restore für iPhone und iPad über USB (libimobiledevice)"
+arch=('any')
+url="https://github.com/ressjo/iosbackuplinux"
+license=('MIT')
+depends=('python' 'pyside6' 'libimobiledevice' 'usbmuxd')
+makedepends=('python-build' 'python-installer' 'python-setuptools' 'python-wheel')
+checkdepends=('python-pytest')
+source=()
+
+_repo="$(realpath "${startdir}/../..")"
+
+prepare() {
+  rm -rf "${srcdir}/${pkgname}"
+  mkdir -p "${srcdir}/${pkgname}"
+  cp -r "${_repo}"/{src,tests,data,pyproject.toml,README.md,LICENSE} "${srcdir}/${pkgname}/"
+}
+
+build() {
+  cd "${srcdir}/${pkgname}"
+  python -m build --wheel --no-isolation
+}
+
+check() {
+  cd "${srcdir}/${pkgname}"
+  # GUI-Test braucht kein Display (offscreen); simuliertes iPhone über Fake-Tools
+  QT_QPA_PLATFORM=offscreen python -m pytest -q tests
+}
+
+package() {
+  cd "${srcdir}/${pkgname}"
+  python -m installer --destdir="${pkgdir}" dist/*.whl
+  install -Dm644 data/iosbackuplinux.desktop "${pkgdir}/usr/share/applications/iosbackuplinux.desktop"
+  install -Dm644 data/iosbackuplinux.svg "${pkgdir}/usr/share/icons/hicolor/scalable/apps/iosbackuplinux.svg"
+  install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}

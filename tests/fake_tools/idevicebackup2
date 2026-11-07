@@ -1,0 +1,144 @@
+#!/usr/bin/env python3
+"""Simuliert idevicebackup2 (Ausgabeformat wie das Original)."""
+import os, plistlib, sys, time
+from datetime import datetime, timezone
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+import _fake_common as c
+
+DELAY = float(os.environ.get("FAKE_DELAY", "0.005"))
+FAIL = os.environ.get("FAKE_FAIL", "")
+args = sys.argv[1:]
+opts = {}
+pos = []
+i = 0
+while i < len(args):
+    a = args[i]
+    if a in ("-u", "-s"):
+        opts[a] = args[i + 1]; i += 2; continue
+    if a.startswith("-"):
+        opts[a] = True
+    else:
+        pos.append(a)
+    i += 1
+udid = opts.get("-u", c.udids()[0])
+cmd = pos[0] if pos else ""
+st = c.load_state()
+
+
+def bar(pct, extra=""):
+    filled = int(pct / 2)
+    sys.stdout.write("\r[" + "=" * filled + " " * (50 - filled) + "] %3.0f%%%s" % (pct, extra))
+    sys.stdout.flush()
+
+
+def ask(msg):
+    sys.stdout.write(msg + ": ")
+    sys.stdout.flush()
+    line = sys.stdin.readline()
+    sys.stdout.write("\n")
+    return line.rstrip("\n")
+
+
+if cmd == "backup":
+    directory = pos[1]
+    print(f'Backup directory is "{directory}"')
+    print('Started "com.apple.mobilebackup2" service on port 49234.')
+    print("Negotiated Protocol Version 2.1")
+    print("Starting backup...")
+    print("Backup will be %s." % ("encrypted" if st["encrypted"] else "unencrypted"))
+    print("Requesting backup from device...")
+    print("Full backup mode." if "--full" in opts else "Incremental backup mode.")
+    for p in range(0, 101, 20):
+        bar(p, " Finished" if p == 100 else ""); time.sleep(DELAY)
+    print()
+    print("Receiving files")
+    total = 2.4
+    for p in range(0, 101, 2):
+        bar(p, " (%.1f GB/%.1f GB)    " % (total * p / 100, total)); time.sleep(DELAY)
+        if FAIL == "backup" and p == 40:
+            print()
+            print("ErrorCode 105: Insufficient free disk space on drive to complete backup")
+            print("Backup Failed (Error Code 105).")
+            sys.exit(255)
+    print()
+    target = os.path.join(directory, udid)
+    os.makedirs(target, exist_ok=True)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    dev = c.device(udid)
+    with open(os.path.join(target, "Info.plist"), "wb") as fh:
+        plistlib.dump({"Device Name": dev["DeviceName"], "Display Name": dev["DeviceName"],
+                       "Product Type": dev["ProductType"], "Product Version": dev["ProductVersion"],
+                       "Serial Number": dev["SerialNumber"], "Target Identifier": udid,
+                       "Unique Identifier": udid, "Last Backup Date": now}, fh)
+    with open(os.path.join(target, "Manifest.plist"), "wb") as fh:
+        plistlib.dump({"IsEncrypted": st["encrypted"], "Date": now, "Version": "10.0"}, fh,
+                      fmt=plistlib.FMT_BINARY)
+    with open(os.path.join(target, "Status.plist"), "wb") as fh:
+        plistlib.dump({"SnapshotState": "finished", "Date": now, "IsFullBackup": False}, fh,
+                      fmt=plistlib.FMT_BINARY)
+    os.makedirs(os.path.join(target, "ab"), exist_ok=True)
+    with open(os.path.join(target, "ab", "ab12cd34ef"), "wb") as fh:
+        fh.write(os.urandom(4096))
+    print("Received 1234 files from device.")
+    print("Backup Successful.")
+    sys.exit(0)
+
+if cmd == "restore":
+    directory = pos[1]
+    source = opts.get("-s", udid)
+    src_dir = os.path.join(directory, source)
+    if not os.path.isdir(src_dir):
+        print(f"ERROR: Backup directory \"{src_dir}\" does not exist!")
+        sys.exit(255)
+    with open(os.path.join(src_dir, "Manifest.plist"), "rb") as fh:
+        enc = plistlib.load(fh).get("IsEncrypted", False)
+    print(f'Backup directory is "{directory}"')
+    print("Starting Restore...")
+    if enc:
+        pw = ask("Enter backup password") if "-i" in opts else ""
+        if pw != st.get("password"):
+            print("ErrorCode 207: Wrong password")
+            print("Restore Failed (Error Code 207).")
+            sys.exit(255)
+    if FAIL == "findmy":
+        print("ErrorCode 211: Find My iPhone must be disabled on the device to restore.")
+        print("Restore Failed (Error Code 211).")
+        sys.exit(255)
+    print("Sending files")
+    for p in range(0, 101, 4):
+        bar(p); time.sleep(DELAY)
+    print()
+    print("Restore Successful.")
+    sys.exit(0)
+
+if cmd == "encryption":
+    on = pos[1] == "on"
+    if on:
+        if st["encrypted"]:
+            print("Backup encryption is already enabled. Aborting."); sys.exit(255)
+        a = ask("Enter new backup password")
+        b = ask("Enter new backup password (repeat)")
+        if a != b:
+            print("ERROR: passwords do not match"); sys.exit(255)
+        st.update(encrypted=True, password=a); c.save_state(st)
+        print("Backup encryption has been enabled successfully."); sys.exit(0)
+    else:
+        if not st["encrypted"]:
+            print("Backup encryption is not enabled. Aborting."); sys.exit(255)
+        a = ask("Enter current backup password")
+        if a != st["password"]:
+            print("ERROR: Wrong password"); sys.exit(255)
+        st.update(encrypted=False, password=""); c.save_state(st)
+        print("Backup encryption has been disabled successfully."); sys.exit(0)
+
+if cmd == "changepw":
+    old = ask("Enter old backup password")
+    new = ask("Enter new backup password")
+    rep = ask("Enter new backup password (repeat)")
+    if old != st["password"] or new != rep:
+        print("ERROR: Could not change backup password: wrong password"); sys.exit(255)
+    st["password"] = new; c.save_state(st)
+    print("Backup encryption password changed successfully."); sys.exit(0)
+
+print("ERROR: unknown command", file=sys.stderr)
+sys.exit(1)

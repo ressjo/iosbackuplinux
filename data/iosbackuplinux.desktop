@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=iOS Backup
+GenericName=iPhone/iPad Backup
+Comment=iPhone und iPad über USB sichern und wiederherstellen
+Exec=iosbackuplinux
+Icon=iosbackuplinux
+Terminal=false
+Categories=Utility;Archiving;Qt;
+Keywords=iPhone;iPad;iOS;Backup;Restore;Wiederherstellen;Sicherung;Apple;
+StartupWMClass=iosbackuplinux
