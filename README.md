@@ -59,43 +59,6 @@ Zum **Wiederherstellen** auf dem Zielgerät vorher **„Wo ist?“ ausschalten**
 Backups liegen als `<Speicherort>/<UDID>/` vor. Bei verschlüsselten Backups ohne
 Passwort ist keine Wiederherstellung möglich – Passwort gut aufbewahren.
 
-## NAS einbinden
-
-Die App braucht einen **echten eingehängten Ordner**. Die `smb://`-Adressen in Dolphin
-(KIO) sind kein Ordner im Dateisystem und funktionieren deshalb nicht.
-
-Empfohlen: SMB-Freigabe per `/etc/fstab` mit systemd-Automount einhängen:
-
-```bash
-sudo pacman -S --needed cifs-utils
-sudo mkdir -p /mnt/nas/backup
-```
-
-Zugangsdaten in `/etc/samba/credentials-nas` (Rechte `600`):
-
-```
-username=DEIN_NAS_BENUTZER
-password=DEIN_NAS_PASSWORT
-```
-
-Zeile in `/etc/fstab` (uid/gid mit `id` prüfen):
-
-```
-//nas.local/backup  /mnt/nas/backup  cifs  credentials=/etc/samba/credentials-nas,uid=1000,gid=1000,iocharset=utf8,vers=3.0,_netdev,nofail,x-systemd.automount,x-systemd.idle-timeout=10min  0  0
-```
-
-```bash
-sudo systemctl daemon-reload
-```
-
-```bash
-sudo mount -a
-```
-
-Danach in der App z. B. `/mnt/nas/backup/iOS-Backups` als Speicherort wählen. Liegt der
-Ordner auf einem eingehängten Laufwerk, schaltet die App automatisch die Option
-„Nur sichern, wenn … eingehängt ist“ ein. NFS funktioniert genauso.
-
 ## Hinweise
 
 - Ein Backup braucht ungefähr so viel Platz wie der belegte Speicher auf dem Gerät.
