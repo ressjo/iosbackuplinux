@@ -95,7 +95,7 @@ class ToolJob(QObject):
         ok, message = False, ""
         try:
             ok, message = self._execute()
-        except Exception as exc:  # pragma: no cover - Sicherheitsnetz
+        except Exception as exc:  # pragma: no cover - safety net
             ok, message = False, f"Internal error: {exc}"
         finally:
             self._done.set()
