@@ -1,4 +1,4 @@
-"""Startpunkt: ``iosbackuplinux`` bzw. ``python -m iosbackup``."""
+"""Entry point: ``iosbackuplinux`` or ``python -m iosbackup``."""
 
 from __future__ import annotations
 
@@ -26,14 +26,16 @@ def main() -> int:
     if missing:
         QMessageBox.critical(
             None, APP_NAME,
-            "Folgende Programme von libimobiledevice fehlen:\n  "
+            "The following libimobiledevice programs are missing:\n  "
             + ", ".join(missing)
-            + f"\n\nBitte installieren mit:\n  {INSTALL_HINT}")
+            + f"\n\nInstall them with:\n  {INSTALL_HINT}")
         return 1
 
     from .ui.mainwindow import MainWindow, app_icon
+    from .ui.style import STYLESHEET
 
     app.setWindowIcon(app_icon())
+    app.setStyleSheet(STYLESHEET)
     win = MainWindow()
     win.show()
     return app.exec()

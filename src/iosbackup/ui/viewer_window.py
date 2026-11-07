@@ -1,4 +1,4 @@
-"""Fenster zum Durchsuchen eines Backups: Fotos & Videos sowie alle Dateien."""
+"""Window for browsing a backup: photos & videos and all files."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from PySide6.QtCore import (QAbstractItemModel, QAbstractListModel, QModelIndex,
 from PySide6.QtGui import (QCloseEvent, QColor, QDesktopServices, QFont, QIcon, QImage,
                            QPainter, QPixmap)
 from PySide6.QtWidgets import (QAbstractItemView, QComboBox, QFileDialog, QFileIconProvider,
-                               QHBoxLayout, QHeaderView, QLabel, QLineEdit, QListView,
+                               QHBoxLayout, QHeaderView, QLineEdit, QListView,
                                QMainWindow, QMessageBox, QProgressDialog, QPushButton,
                                QStackedWidget, QTabWidget, QTreeView, QVBoxLayout, QWidget)
 
@@ -21,6 +21,7 @@ from ..viewer.media import MediaItem, make_thumbnail, month_label
 from ..viewer.reader import BackupReader, Entry
 from ..viewer.tree import Node
 from .async_util import run_async
+from .style import heading, muted
 
 THUMB = 160
 
@@ -57,7 +58,7 @@ def thumb_cache_dir(udid: str) -> str:
 
 
 # ===========================================================================
-# Fotos & Videos
+# Photos & videos
 # ===========================================================================
 class _ThumbSignals(QObject):
     done = Signal(str, object)  # file_id, QImage | None
@@ -90,8 +91,8 @@ class PhotoModel(QAbstractListModel):
         self.pool.setMaxThreadCount(3)
         self._signals = _ThumbSignals(self)
         self._signals.done.connect(self._on_thumb)
-        self._ph_photo = placeholder_icon("Foto")
-        self._ph_video = placeholder_icon("▶ Video")
+        self._ph_photo = placeholder_icon("Photo")
+        self._ph_video = placeholder_icon("Video")
         self._ph_heic = placeholder_icon("HEIC")
 
     def set_items(self, items: list[MediaItem]) -> None:
@@ -158,22 +159,22 @@ class PhotosTab(QWidget):
 
         bar = QHBoxLayout()
         self.type_combo = QComboBox()
-        self.type_combo.addItems(["Fotos und Videos", "Nur Fotos", "Nur Videos"])
+        self.type_combo.addItems(["Photos and Videos", "Photos", "Videos"])
         self.month_combo = QComboBox()
-        self.month_combo.addItem("Alle Monate", "")
+        self.month_combo.addItem("All months", "")
         months = []
         for m in media:
             if m.month_key not in months:
                 months.append(m.month_key)
         for key in months:
             self.month_combo.addItem(month_label(key), key)
-        self.count_label = QLabel()
+        self.count_label = muted()
         bar.addWidget(self.type_combo)
         bar.addWidget(self.month_combo)
         bar.addWidget(self.count_label, 1)
-        self.btn_all = QPushButton("Alle auswählen")
-        self.btn_open = QPushButton(QIcon.fromTheme("document-open"), "Öffnen")
-        self.btn_export = QPushButton(QIcon.fromTheme("document-export"), "Exportieren …")
+        self.btn_all = QPushButton("Select All")
+        self.btn_open = QPushButton(QIcon.fromTheme("document-open"), "Open")
+        self.btn_export = QPushButton(QIcon.fromTheme("document-export"), "Export…")
         for b in (self.btn_all, self.btn_open, self.btn_export):
             bar.addWidget(b)
         v.addLayout(bar)
@@ -192,12 +193,17 @@ class PhotosTab(QWidget):
         self.view.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.view.setModel(self.model)
         self.stack.addWidget(self.view)
-        empty = QLabel("In diesem Backup sind keine Fotos oder Videos der Kamerarolle enthalten.\n\n"
-                       "Hinweis: Wenn auf dem Gerät „iCloud-Fotos“ eingeschaltet ist, speichert "
-                       "iOS die Fotos nicht im lokalen Backup, sondern nur in iCloud.")
-        empty.setWordWrap(True)
-        empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        empty.setStyleSheet("color: palette(placeholder-text); font-size: 12pt;")
+        empty = QWidget()
+        ev = QVBoxLayout(empty)
+        ev.addStretch(1)
+        t = heading("No photos or videos in this backup", 1.2)
+        t.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        ev.addWidget(t)
+        hint = muted("If iCloud Photos is turned on, iOS keeps photos in iCloud and leaves them "
+                     "out of local backups.", wrap=True)
+        hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        ev.addWidget(hint)
+        ev.addStretch(2)
         self.stack.addWidget(empty)
         v.addWidget(self.stack, 1)
 
@@ -225,7 +231,9 @@ class PhotosTab(QWidget):
                  and (not month or m.month_key == month)]
         self.model.set_items(items)
         photos = sum(1 for m in items if not m.is_video)
-        self.count_label.setText(f"  {photos} Fotos, {len(items) - photos} Videos")
+        videos = len(items) - photos
+        self.count_label.setText(f"{photos} photo{'s' if photos != 1 else ''} · "
+                                 f"{videos} video{'s' if videos != 1 else ''}")
         self.stack.setCurrentIndex(0 if self.media else 1)
         for w in (self.type_combo, self.month_combo, self.btn_all):
             w.setEnabled(bool(self.media))
@@ -234,7 +242,7 @@ class PhotosTab(QWidget):
     def _update_buttons(self, *_) -> None:
         n = len(self.view.selectionModel().selectedIndexes())
         self.btn_export.setEnabled(n > 0)
-        self.btn_export.setText(f"{n} exportieren …" if n else "Exportieren …")
+        self.btn_export.setText(f"Export {n}…" if n else "Export…")
         self.btn_open.setEnabled(n == 1)
 
     def _open_selected(self) -> None:
@@ -249,10 +257,10 @@ class PhotosTab(QWidget):
 
 
 # ===========================================================================
-# Dateibrowser
+# File browser
 # ===========================================================================
 class FileTreeModel(QAbstractItemModel):
-    HEADERS = ["Name", "Größe", "Geändert"]
+    HEADERS = ["Name", "Size", "Modified"]
 
     def __init__(self, reader: BackupReader, root: Node, parent=None):
         super().__init__(parent)
@@ -323,11 +331,11 @@ class FilesTab(QWidget):
         v = QVBoxLayout(self)
         bar = QHBoxLayout()
         self.search = QLineEdit()
-        self.search.setPlaceholderText("Suchen (Dateiname) …")
+        self.search.setPlaceholderText("Search file names…")
         self.search.setClearButtonEnabled(True)
         bar.addWidget(self.search, 1)
-        self.btn_open = QPushButton(QIcon.fromTheme("document-open"), "Öffnen")
-        self.btn_export = QPushButton(QIcon.fromTheme("document-export"), "Exportieren …")
+        self.btn_open = QPushButton(QIcon.fromTheme("document-open"), "Open")
+        self.btn_export = QPushButton(QIcon.fromTheme("document-export"), "Export…")
         bar.addWidget(self.btn_open)
         bar.addWidget(self.btn_export)
         v.addLayout(bar)
@@ -392,7 +400,7 @@ class FilesTab(QWidget):
 
 
 def export_items_for_nodes(nodes: list[Node]) -> list[tuple[Entry, str]]:
-    """Dateien (rekursiv) mit Zielpfad relativ zum jeweils ausgewählten Knoten."""
+    """Files (recursively) with destination paths relative to each selected node."""
     items, seen = [], set()
     for node in nodes:
         prefix = node.parent.path() if node.parent is not None else ""
@@ -409,7 +417,7 @@ def export_items_for_nodes(nodes: list[Node]) -> list[tuple[Entry, str]]:
 
 
 # ===========================================================================
-# Fenster
+# Window
 # ===========================================================================
 class BackupViewerWindow(QMainWindow):
     closed = Signal(str)
@@ -422,34 +430,38 @@ class BackupViewerWindow(QMainWindow):
         self.reader = reader
         self.backup = backup
         self.export_job: ExportJob | None = None
-        self._last_dir = os.path.join(os.path.expanduser("~"), "Bilder")
+        self._last_dir = os.path.join(os.path.expanduser("~"), "Pictures")
         if not os.path.isdir(self._last_dir):
             self._last_dir = os.path.expanduser("~")
 
         name = backup.device_name or backup.udid
-        self.setWindowTitle(f"Backup von „{name}“ – {format_datetime(backup.last_backup)}")
+        self.setWindowTitle(f"{name} – Backup from {format_datetime(backup.last_backup)}")
         central = QWidget()
         self.setCentralWidget(central)
         v = QVBoxLayout(central)
-        info = QLabel(f"<b>{name}</b> · iOS {backup.product_version or '?'} · "
-                      f"Backup vom {format_datetime(backup.last_backup)}"
-                      + (" · 🔒 verschlüsselt" if reader.encrypted else ""))
-        v.addWidget(info)
+        v.setContentsMargins(14, 12, 14, 10)
+        v.setSpacing(8)
+        v.addWidget(heading(name, 1.3))
+        v.addWidget(muted(" · ".join(
+            x for x in (f"iOS {backup.product_version}" if backup.product_version else "",
+                        f"Backup from {format_datetime(backup.last_backup)}",
+                        "Encrypted" if reader.encrypted else "") if x)))
 
         cache = None if reader.encrypted else thumb_cache_dir(backup.udid)
         self.tabs = QTabWidget()
+        self.tabs.setDocumentMode(True)
         self.photos = PhotosTab(self, media, cache)
         self.files = FilesTab(self, tree)
-        self.tabs.addTab(self.photos, f"Fotos && Videos ({len(media)})")
-        self.tabs.addTab(self.files, "Dateien")
+        self.tabs.addTab(self.photos, f"Photos && Videos ({len(media)})")
+        self.tabs.addTab(self.files, "Files")
         v.addWidget(self.tabs, 1)
-        self.status = QLabel()
+        self.status = muted()
         v.addWidget(self.status)
         self.resize(1100, 750)
 
-    # --- Öffnen ---------------------------------------------------------
+    # --- open -----------------------------------------------------------
     def open_entry(self, entry: Entry) -> None:
-        self.status.setText(f"„{entry.name}“ wird geöffnet …")
+        self.status.setText(f"Opening “{entry.name}”…")
         run_async(self.reader.temp_copy, entry,
                   on_done=self._opened, on_error=self._open_failed)
 
@@ -459,16 +471,16 @@ class BackupViewerWindow(QMainWindow):
 
     def _open_failed(self, msg: str) -> None:
         self.status.setText("")
-        QMessageBox.critical(self, "Öffnen fehlgeschlagen", msg)
+        QMessageBox.critical(self, "Could Not Open File", msg)
 
-    # --- Export ---------------------------------------------------------
+    # --- export ---------------------------------------------------------
     def export(self, items: list[tuple[Entry, str]]) -> None:
         if not items:
-            QMessageBox.information(self, "Export", "Die Auswahl enthält keine Dateien.")
+            QMessageBox.information(self, "Export", "The selection contains no files.")
             return
         if self.export_job is not None:
             return
-        dest = QFileDialog.getExistingDirectory(self, "Zielordner für den Export wählen",
+        dest = QFileDialog.getExistingDirectory(self, "Choose Export Folder",
                                                 self._last_dir)
         if not dest:
             return
@@ -478,7 +490,7 @@ class BackupViewerWindow(QMainWindow):
     def _start_export(self, items: list[tuple[Entry, str]], dest: str) -> None:
         job = ExportJob(self.reader, items, dest, self)
         self.export_job = job
-        dlg = QProgressDialog("Exportiere …", "Abbrechen", 0, len(items), self)
+        dlg = QProgressDialog("Exporting…", "Cancel", 0, len(items), self)
         dlg.setWindowTitle("Export")
         dlg.setWindowModality(Qt.WindowModality.WindowModal)
         dlg.setMinimumDuration(300)
@@ -489,7 +501,7 @@ class BackupViewerWindow(QMainWindow):
             dlg.setMaximum(total)
             dlg.setValue(done)
             if name:
-                dlg.setLabelText(f"Exportiere {done + 1} von {total}:\n{name}")
+                dlg.setLabelText(f"Exporting {done + 1} of {total}:\n{name}")
 
         job.progress.connect(on_progress)
         job.finished.connect(lambda ok, errors, cancelled: self._export_done(dest, ok, errors,
@@ -500,20 +512,20 @@ class BackupViewerWindow(QMainWindow):
         self._progress_dialog.reset()
         self._progress_dialog.deleteLater()
         self.export_job = None
-        text = f"{ok} Datei(en) nach\n{dest}\nexportiert."
+        text = f"Exported {ok} file{'s' if ok != 1 else ''} to\n{dest}"
         if cancelled:
-            text = "Export abgebrochen. " + text
+            text = "Export cancelled. " + text
         if errors:
-            text += f"\n\n{len(errors)} Fehler:\n" + "\n".join(errors[:10])
+            text += f"\n\n{len(errors)} error{'s' if len(errors) != 1 else ''}:\n" + "\n".join(errors[:10])
         box = QMessageBox(QMessageBox.Icon.Warning if errors else QMessageBox.Icon.Information,
                           "Export", text, parent=self)
-        open_btn = box.addButton("Ordner öffnen", QMessageBox.ButtonRole.ActionRole)
+        open_btn = box.addButton("Show in Folder", QMessageBox.ButtonRole.ActionRole)
         box.addButton(QMessageBox.StandardButton.Close)
         box.exec()
         if box.clickedButton() is open_btn:
             QDesktopServices.openUrl(QUrl.fromLocalFile(dest))
 
-    # --- Schließen ------------------------------------------------------
+    # --- close ----------------------------------------------------------
     def closeEvent(self, event: QCloseEvent) -> None:
         if self.export_job is not None:
             self.export_job.cancel()

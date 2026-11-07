@@ -36,19 +36,19 @@ def test_success_detection():
 
 
 def test_explain_failure():
-    assert "Wo ist" in explain_failure("ErrorCode 211: Find My iPhone must be disabled")
-    assert "Vertrauen" in explain_failure(
+    assert "Find My" in explain_failure("ErrorCode 211: Find My iPhone must be disabled")
+    assert "Trust" in explain_failure(
         "ERROR: Could not connect to lockdownd: Pairing dialog response pending (-19)")
     assert "usbmuxd" in explain_failure("ERROR: Unable to retrieve device list!")
-    assert "falsch" in explain_failure("ErrorCode 207: Wrong password")
+    assert "incorrect" in explain_failure("ErrorCode 207: Wrong password")
     assert explain_failure("something odd happened") == "something odd happened"
 
 
 def test_translate_status():
-    assert translate_status("Receiving files") == "Dateien werden vom Gerät empfangen …"
+    assert translate_status("Receiving files") == "Receiving files from device…"
     assert translate_status("random") is None
 
 
 def test_explain_prefers_device_error_description():
     out = "ErrorCode 999: Something specific\nBackup Failed (Error Code 999).\n"
-    assert explain_failure(out) == "Something specific (Fehlercode 999)"
+    assert explain_failure(out) == "Something specific (error code 999)"

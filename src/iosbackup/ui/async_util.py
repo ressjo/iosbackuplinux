@@ -1,4 +1,4 @@
-"""Kurze Hintergrundaufgaben (z. B. NAS-Prüfung), damit die Oberfläche nie einfriert."""
+"""Short background tasks (e.g. checking a NAS) so the UI never freezes."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ _alive: set[_Task] = set()
 
 
 def run_async(fn, *args, on_done=None, on_error=None, **kwargs) -> None:
-    """Führt ``fn`` im Threadpool aus; Callbacks laufen im GUI-Thread."""
+    """Run ``fn`` in the thread pool; callbacks run in the GUI thread."""
     task = _Task(fn, args, kwargs)
     task.setAutoDelete(False)
     _alive.add(task)

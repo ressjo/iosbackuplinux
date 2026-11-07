@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "iosbackuplinux"
-version = "0.1.0"
-description = "Grafisches Backup & Restore für iPhone und iPad über USB (basiert auf libimobiledevice)"
+version = "0.2.0"
+description = "Back up, restore and browse iPhone and iPad backups over USB (based on libimobiledevice)"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"

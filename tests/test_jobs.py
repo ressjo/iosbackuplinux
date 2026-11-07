@@ -27,7 +27,7 @@ def test_devices(fake_tools):
     assert udids == [UDID] and err is None
     info = fetch_device_info(UDID)
     assert info.pairing == PAIRED
-    assert info.name == "Joshuas iPhone"
+    assert info.name == "Joshua’s iPhone"
     assert info.model == "iPhone 14 Pro"
     assert info.used_bytes == 255_000_000_000 - 143_500_000_000
     assert info.will_encrypt is False
@@ -45,7 +45,7 @@ def test_backup_job(qapp, fake_tools):
     assert res["ok"], res
     assert ev["progress"] and ev["progress"][-1][0] == 100
     assert any(d == "2.4 GB / 2.4 GB" for _, d in ev["progress"])
-    assert "Dateien werden vom Gerät empfangen …" in ev["status"]
+    assert "Receiving files from device…" in ev["status"]
     entries = scan_backups(str(dest))
     assert len(entries) == 1 and entries[0].udid == UDID and entries[0].complete
 
@@ -56,11 +56,11 @@ def test_backup_failure(qapp, fake_tools, monkeypatch):
     dest.mkdir()
     res, _ = run_job(qapp, ToolJob("backup", tools.backup_cmd(UDID, str(dest))))
     assert not res["ok"]
-    assert "Speicherplatz" in res["msg"]
+    assert "free space" in res["msg"]
 
 
 def test_encryption_and_encrypted_restore(qapp, fake_tools):
-    # Verschlüsselung einschalten – Passwort geht über das PTY, nicht über argv
+    # turn on encryption – the password goes through the PTY, not argv
     job = ToolJob("encryption", tools.encryption_cmd(UDID, True), {"new": "geheim123"})
     assert "geheim123" not in " ".join(job.args)
     res, ev = run_job(qapp, job)
@@ -75,10 +75,10 @@ def test_encryption_and_encrypted_restore(qapp, fake_tools):
     assert res["ok"]
     assert scan_backups(str(dest))[0].encrypted is True
 
-    # falsches Passwort
+    # wrong password
     res, _ = run_job(qapp, ToolJob("restore", tools.restore_cmd(UDID, str(dest), UDID),
-                                   {"default": "falsch", "old": "falsch"}))
-    assert not res["ok"] and "falsch" in res["msg"]
+                                   {"default": "wrong", "old": "wrong"}))
+    assert not res["ok"] and "incorrect" in res["msg"]
 
     # richtiges Passwort
     res, ev = run_job(qapp, ToolJob("restore", tools.restore_cmd(UDID, str(dest), UDID),
@@ -86,7 +86,7 @@ def test_encryption_and_encrypted_restore(qapp, fake_tools):
     assert res["ok"], res
     assert ev["progress"][-1][0] == 100
 
-    # Passwort ändern, dann ausschalten
+    # change the password, then turn encryption off
     res, _ = run_job(qapp, ToolJob("changepw", tools.changepw_cmd(UDID),
                                    {"old": "geheim123", "new": "neu456"}))
     assert res["ok"], res
@@ -103,7 +103,7 @@ def test_restore_findmy(qapp, fake_tools, monkeypatch):
         plistlib.dump({"IsEncrypted": False}, fh)
     monkeypatch.setenv("FAKE_FAIL", "findmy")
     res, _ = run_job(qapp, ToolJob("restore", tools.restore_cmd(UDID, str(dest), UDID)))
-    assert not res["ok"] and "Wo ist" in res["msg"]
+    assert not res["ok"] and "Find My" in res["msg"]
 
 
 def test_missing_password_does_not_hang(qapp, fake_tools):

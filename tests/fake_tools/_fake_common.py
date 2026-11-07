@@ -1,10 +1,10 @@
-"""Gemeinsame Daten der Fake-Tools (simuliertes iPhone für Tests/Demo).
+"""Shared data for the fake tools (simulated iPhone for tests/demo).
 
-Steuerung über Umgebungsvariablen:
-  FAKE_UDIDS        Komma-getrennte UDIDs (Standard: eine Fake-UDID)
-  FAKE_UNPAIRED     "1" -> Gerät gilt als nicht gekoppelt
-  FAKE_STATE_DIR    Ordner für Zustand (Verschlüsselung an/aus, Passwort)
-  FAKE_FAIL         z. B. "findmy" (Restore schlägt fehl), "backup" (Backup schlägt fehl)
+Controlled via environment variables:
+  FAKE_UDIDS        comma-separated UDIDs (default: one fake UDID)
+  FAKE_UNPAIRED     "1" -> device is treated as not paired
+  FAKE_STATE_DIR    folder for state (encryption on/off, password)
+  FAKE_FAIL         e.g. "findmy" (restore fails), "backup" (backup fails)
   FAKE_DELAY        Sekunden pro Fortschrittsschritt (Standard 0.005)
 """
 import json
@@ -39,10 +39,10 @@ def save_state(st):
 
 def device(udid):
     return {
-        "DeviceName": "Joshuas iPhone",
+        "DeviceName": "Joshua’s iPhone",
         "ProductType": "iPhone15,2",
         "ProductVersion": "18.6.2",
         "DeviceClass": "iPhone",
-        "SerialNumber": "F2LXK0FAKE01",
+        "SerialNumber": "DNPXK2Q1P6KJ",
         "UniqueDeviceID": udid,
     }

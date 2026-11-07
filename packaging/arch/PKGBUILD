@@ -1,16 +1,16 @@
 # Maintainer: Joshua Ress
-# Lokaler PKGBUILD: im Ordner packaging/arch "makepkg -si" ausführen.
+# Local PKGBUILD: run "makepkg -si" inside packaging/arch.
 pkgname=iosbackuplinux
-pkgver=0.1.0
+pkgver=0.2.0
 pkgrel=1
-pkgdesc="Grafisches Backup & Restore für iPhone und iPad über USB (libimobiledevice)"
+pkgdesc="Back up, restore and browse iPhone and iPad backups over USB (libimobiledevice)"
 arch=('any')
 url="https://github.com/ressjo/iosbackuplinux"
 license=('MIT')
 depends=('python' 'pyside6' 'python-cryptography' 'libimobiledevice' 'usbmuxd')
-optdepends=('kimageformats: HEIC-Vorschaubilder im Backup-Viewer'
-            'libheif: HEIC-Vorschaubilder (heif-dec), falls kimageformats fehlt'
-            'ffmpegthumbnailer: Vorschaubilder für Videos im Backup-Viewer')
+optdepends=('kimageformats: HEIC thumbnails in the backup browser'
+            'libheif: HEIC thumbnails via heif-dec if kimageformats lacks HEIF'
+            'ffmpegthumbnailer: video thumbnails in the backup browser')
 makedepends=('python-build' 'python-installer' 'python-setuptools' 'python-wheel')
 checkdepends=('python-pytest')
 source=()
@@ -30,7 +30,7 @@ build() {
 
 check() {
   cd "${srcdir}/${pkgname}"
-  # GUI-Test braucht kein Display (offscreen); simuliertes iPhone über Fake-Tools
+  # GUI tests run without a display (offscreen); a simulated iPhone is provided by fake tools
   QT_QPA_PLATFORM=offscreen python -m pytest -q tests
 }
 

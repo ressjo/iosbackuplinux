@@ -1,8 +1,10 @@
-"""Formatierungshelfer (deutsche Schreibweise)."""
+"""Formatting helpers (locale-independent, English)."""
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
+
+_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 
 def format_bytes(value: int | float | None) -> str:
@@ -16,7 +18,7 @@ def format_bytes(value: int | float | None) -> str:
         i += 1
     if i == 0:
         return f"{int(value)} B"
-    return f"{value:.1f} {units[i]}".replace(".", ",")
+    return f"{value:.1f} {units[i]}"
 
 
 def format_datetime(dt: datetime | None) -> str:
@@ -24,4 +26,5 @@ def format_datetime(dt: datetime | None) -> str:
         return "–"
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone().strftime("%d.%m.%Y %H:%M")
+    dt = dt.astimezone()
+    return f"{dt.day} {_MONTHS[dt.month - 1]} {dt.year}, {dt:%H:%M}"

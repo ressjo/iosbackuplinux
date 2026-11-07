@@ -1,4 +1,4 @@
-"""Öffnet ein Backup komplett im Hintergrund (Entschlüsseln, Einlesen, Fotos, Baum)."""
+"""Open a backup entirely in the background (decrypt, read, photos, tree)."""
 
 from __future__ import annotations
 

@@ -1,8 +1,8 @@
-"""Vorhandene Backups im Speicherort finden, auslesen und löschen.
+"""Find, read and delete existing backups in the backup location.
 
-idevicebackup2 legt pro Gerät einen Ordner ``<Speicherort>/<UDID>/`` an, der
-``Info.plist``, ``Manifest.plist``, ``Status.plist`` und die Dateien enthält
-(gleiches Format wie iTunes/Finder).
+idevicebackup2 creates one folder per device, ``<location>/<UDID>/``, containing
+``Info.plist``, ``Manifest.plist``, ``Status.plist`` and the files (same format as
+iTunes/Finder).
 """
 
 from __future__ import annotations
@@ -127,10 +127,10 @@ def backup_size(path: str) -> int:
 
 
 def delete_backup(entry: BackupEntry, root: str) -> None:
-    """Löscht ein Backup – aber nur, wenn es wirklich ein Backup direkt im Speicherort ist."""
+    """Delete a backup – but only if it really is a backup directly inside the location."""
     path = os.path.realpath(entry.path)
     if os.path.dirname(path) != os.path.realpath(root):
-        raise ValueError("Backup liegt nicht direkt im Speicherort – Löschen verweigert.")
+        raise ValueError("Backup is not directly inside the backup location – refusing to delete.")
     if not is_backup_dir(path):
-        raise ValueError("Ordner sieht nicht wie ein iOS-Backup aus – Löschen verweigert.")
+        raise ValueError("Folder does not look like an iOS backup – refusing to delete.")
     shutil.rmtree(path)

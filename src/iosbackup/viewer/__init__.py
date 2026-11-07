@@ -1,1 +1,1 @@
-"""Backup-Viewer: Inhalte (Fotos, Dateien) aus iOS-Backups lesen und exportieren."""
+"""Backup browser: read and export contents (photos, files) of iOS backups."""

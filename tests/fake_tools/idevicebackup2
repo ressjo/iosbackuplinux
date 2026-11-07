@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Simuliert idevicebackup2 (Ausgabeformat wie das Original)."""
+"""Simulates idevicebackup2 (same output format as the original)."""
 import os, plistlib, sys, time
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 import _fake_common as c
@@ -69,7 +69,7 @@ if cmd == "backup":
                         password=st["password"] if st["encrypted"] else None,
                         device_name=dev["DeviceName"], product_type=dev["ProductType"],
                         product_version=dev["ProductVersion"])
-    except ImportError:  # cryptography fehlt: nur Metadaten schreiben
+    except ImportError:  # cryptography missing: write metadata only
         bf.build_backup(directory, udid, [], password=None, device_name=dev["DeviceName"])
         mp = os.path.join(directory, udid, "Manifest.plist")
         with open(mp, "rb") as fh:

@@ -1,24 +1,24 @@
-"""Baumstruktur aller Dateien im Backup (für den Dateibrowser)."""
+"""Tree of all files in a backup (for the file browser)."""
 
 from __future__ import annotations
 
 from .reader import Entry
 
-GROUP_ORDER = ["Kamerarolle", "Medien", "Apps", "App-Gruppen", "App-Erweiterungen", "System"]
+GROUP_ORDER = ["Camera Roll", "Media", "Apps", "App Groups", "App Extensions", "System"]
 
 _SPECIAL = {
-    "CameraRollDomain": ("Kamerarolle", None),
-    "MediaDomain": ("Medien", None),
+    "CameraRollDomain": ("Camera Roll", None),
+    "MediaDomain": ("Media", None),
     "HomeDomain": ("Home", "System"),
 }
 
 
 def domain_location(domain: str) -> tuple[str, str | None]:
-    """(Anzeigename, Gruppe) einer Domain. Gruppe ``None`` = oberste Ebene."""
+    """(display name, group) of a domain. Group ``None`` = top level."""
     if domain in _SPECIAL:
         return _SPECIAL[domain]
-    for prefix, group in (("AppDomainGroup-", "App-Gruppen"),
-                          ("AppDomainPlugin-", "App-Erweiterungen"),
+    for prefix, group in (("AppDomainGroup-", "App Groups"),
+                          ("AppDomainPlugin-", "App Extensions"),
                           ("AppDomain-", "Apps")):
         if domain.startswith(prefix):
             return domain[len(prefix):], group

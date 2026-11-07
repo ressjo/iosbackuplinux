@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 @pytest.fixture
 def fake_tools(tmp_path, monkeypatch):
-    """PATH auf die Fake-Tools umbiegen (simuliertes iPhone)."""
+    """Point PATH at the fake tools (simulated iPhone)."""
     monkeypatch.setenv("PATH", FAKE_DIR + os.pathsep + os.environ.get("PATH", ""))
     monkeypatch.setenv("FAKE_STATE_DIR", str(tmp_path / "state"))
     monkeypatch.setenv("FAKE_DELAY", "0")

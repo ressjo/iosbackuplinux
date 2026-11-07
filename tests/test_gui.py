@@ -1,4 +1,4 @@
-"""GUI-Smoke-Test mit simuliertem iPhone (QT_QPA_PLATFORM=offscreen)."""
+"""GUI smoke test with a simulated iPhone (QT_QPA_PLATFORM=offscreen)."""
 import time
 
 import pytest
@@ -34,7 +34,7 @@ def window(qapp, fake_tools, monkeypatch):
     nas.mkdir()
     win = MainWindow()
     win.settings.backup_dir = str(nas)
-    win.path_edit.setText(str(nas))
+    win.path_label.setFullText(str(nas))
     win.refresh_storage()
     win.show()
     win.messages = messages
@@ -44,17 +44,17 @@ def window(qapp, fake_tools, monkeypatch):
 
 def test_backup_via_gui(qapp, window):
     assert wait_until(qapp, lambda: window.current_device() is not None)
-    assert window.dev_name.text() == "Joshuas iPhone"
+    assert window.dev_name.text() == "Joshua’s iPhone"
     assert window.btn_backup.isEnabled()
     window.start_backup()
     assert wait_until(qapp, lambda: window.job is not None and not window.job.is_running()
                       and window.btn_backup.isEnabled(), 20)
-    assert ("information", "Backup erfolgreich abgeschlossen.") in window.messages
+    assert ("information", "Backup completed.") in window.messages
     assert wait_until(qapp, lambda: window.table.rowCount() == 1)
-    assert window.table.item(0, 0).text() == "Joshuas iPhone"
-    assert "Letztes Backup" in window.lbl_last_backup.text()
+    assert window.table.item(0, 0).text() == "Joshua’s iPhone"
+    assert "Latest backup" in window.lbl_last_backup.text()
 
-    # Inhalt des Backups über das Hauptfenster öffnen
+    # browse the backup from the main window
     window.open_viewer(window.backups[0])
     assert wait_until(qapp, lambda: window.backups[0].path in window.viewers)
     viewer = window.viewers[window.backups[0].path]

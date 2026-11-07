@@ -1,4 +1,4 @@
-"""Export von Dateien aus dem Backup in einen normalen Ordner."""
+"""Exporting files from a backup into a regular folder."""
 
 from __future__ import annotations
 
@@ -26,10 +26,10 @@ def safe_name(name: str) -> str:
 
 
 class ExportJob(QObject):
-    """items: Liste (Entry, relativer Zielpfad)."""
+    """items: list of (Entry, relative destination path)."""
 
     progress = Signal(int, int, str)
-    finished = Signal(int, list, bool)  # Anzahl ok, Fehlerliste, abgebrochen
+    finished = Signal(int, list, bool)  # number ok, errors, cancelled
 
     def __init__(self, reader: BackupReader, items: list[tuple[Entry, str]], dest_dir: str,
                  parent=None):

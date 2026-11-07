@@ -1,8 +1,8 @@
-"""Erzeugt synthetische iOS-Backups (Format wie iTunes/idevicebackup2) für Tests und Demo.
+"""Creates synthetic iOS backups (same format as iTunes/idevicebackup2) for tests and demos.
 
-Verschlüsselte Backups werden wie im Original aufgebaut: Keybag mit per Passwort
-gewrappten Klassenschlüsseln, Manifest.db und Dateien AES-256-CBC (IV 0) verschlüsselt.
-Wird auch vom Fake-idevicebackup2 benutzt (nur Standardbibliothek + optional cryptography).
+Encrypted backups are built like the real thing: a keybag with class keys wrapped by the
+password key, and Manifest.db plus all files encrypted with AES-256-CBC (IV 0).
+Also used by the fake idevicebackup2 (standard library + optional cryptography).
 """
 import hashlib
 import os
@@ -43,7 +43,7 @@ def _wrap(kek, key):
 def file_blob(path, size, mtime, protection_class=3, encryption_key=None, is_dir=False):
     objects = ["$null"]
     root = {
-        "$class": plistlib.UID(0),  # wird unten gesetzt
+        "$class": plistlib.UID(0),  # set below
         "RelativePath": plistlib.UID(2),
         "LastModified": int(mtime), "LastStatusChange": int(mtime), "Birth": int(mtime),
         "Size": 0 if is_dir else size, "ProtectionClass": protection_class,
@@ -63,7 +63,7 @@ def file_blob(path, size, mtime, protection_class=3, encryption_key=None, is_dir
 
 
 def png_bytes(width, height, hue):
-    """Einfaches Verlaufsbild als PNG (ohne externe Bibliotheken)."""
+    """Simple gradient image as PNG (no external libraries)."""
     import colorsys
     rows = []
     for y in range(height):
@@ -83,7 +83,7 @@ def png_bytes(width, height, hue):
 
 def build_backup(root, udid, files, password=None, iterations=(10, 10), device_name="Test-iPhone",
                  product_type="iPhone15,2", product_version="18.6.2"):
-    """files: Liste (domain, relativePath, bytes oder None für Ordner, mtime)."""
+    """files: list of (domain, relativePath, bytes or None for folders, mtime)."""
     target = os.path.join(root, udid)
     os.makedirs(target, exist_ok=True)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -156,7 +156,7 @@ def build_backup(root, udid, files, password=None, iterations=(10, 10), device_n
 
 
 def sample_files(count=12, base_mtime=1_760_000_000, image_size=(96, 72)):
-    """Beispielinhalt: Kamerarolle mit Fotos und einem Video, App-Daten, Notiz."""
+    """Sample content: camera roll with photos and a video, app data, a note."""
     files = [("CameraRollDomain", "Media", None, base_mtime),
              ("CameraRollDomain", "Media/DCIM", None, base_mtime),
              ("CameraRollDomain", "Media/DCIM/100APPLE", None, base_mtime)]
@@ -168,10 +168,10 @@ def sample_files(count=12, base_mtime=1_760_000_000, image_size=(96, 72)):
                   b"\x00\x00\x00\x14ftypqt  " + os.urandom(3000), base_mtime + 3600))
     files += [
         ("HomeDomain", "Library/Notes", None, base_mtime),
-        ("HomeDomain", "Library/Notes/notes.txt", "Einkaufsliste: Milch, Brot".encode(), base_mtime),
+        ("HomeDomain", "Library/Notes/notes.txt", "Shopping list: milk, bread".encode(), base_mtime),
         ("AppDomain-net.whatsapp.WhatsApp", "Documents", None, base_mtime),
         ("AppDomain-net.whatsapp.WhatsApp", "Documents/ChatStorage.sqlite", os.urandom(5000), base_mtime),
-        ("MediaDomain", "Media/Recordings/Aufnahme 1.m4a", os.urandom(2000), base_mtime),
+        ("MediaDomain", "Media/Recordings/Recording 1.m4a", os.urandom(2000), base_mtime),
         ("HomeDomain", "Library/Empty.txt", b"", base_mtime),
     ]
     return files

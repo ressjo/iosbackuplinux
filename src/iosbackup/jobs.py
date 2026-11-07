@@ -1,9 +1,9 @@
-"""Lang laufende Vorgänge (Backup, Restore, Verschlüsselung) im Hintergrund.
+"""Long-running operations (backup, restore, encryption) in the background.
 
-idevicebackup2 wird in einem Pseudo-Terminal gestartet. Dadurch
-  * kommt die Fortschrittsanzeige sofort (ungepuffert) an,
-  * können Passwörter über die interaktive Abfrage (``-i``) eingegeben werden,
-    ohne dass sie als Kommandozeilenargument in ``ps`` sichtbar sind.
+idevicebackup2 runs inside a pseudo terminal, so that
+  * progress output arrives immediately (unbuffered), and
+  * passwords can be typed into the interactive prompt (``-i``) instead of being
+    passed as command line arguments that would be visible in ``ps``.
 """
 
 from __future__ import annotations
@@ -25,10 +25,10 @@ from .tools import tool_env
 
 
 class ToolJob(QObject):
-    line = Signal(str)               # vollständige Ausgabezeile (fürs Protokoll)
-    progress = Signal(float, str)    # Prozent, Detail (z. B. "1.2 GB / 30 GB")
-    status = Signal(str)             # menschenlesbarer Status
-    finished = Signal(bool, str)     # Erfolg, Meldung
+    line = Signal(str)               # complete output line (for the log)
+    progress = Signal(float, str)    # percent, detail (e.g. "1.2 GB / 30 GB")
+    status = Signal(str)             # human readable status
+    finished = Signal(bool, str)     # success, message
 
     def __init__(self, kind: str, args: list[str], passwords: dict[str, str] | None = None,
                  parent=None):
@@ -55,7 +55,7 @@ class ToolJob(QObject):
         return self._done.wait(timeout)
 
     def cancel(self) -> None:
-        """Bricht sauber ab (SIGINT wie Strg+C), notfalls hart."""
+        """Cancel gracefully (SIGINT like Ctrl+C), escalating if needed."""
         self.cancelled = True
         proc = self._proc
         if proc is None or proc.poll() is not None:
@@ -96,14 +96,14 @@ class ToolJob(QObject):
         try:
             ok, message = self._execute()
         except Exception as exc:  # pragma: no cover - Sicherheitsnetz
-            ok, message = False, f"Interner Fehler: {exc}"
+            ok, message = False, f"Internal error: {exc}"
         finally:
             self._done.set()
             self.finished.emit(ok, message)
 
     def _execute(self) -> tuple[bool, str]:
         master, slave = pty.openpty()
-        # Echo abschalten, damit eingegebene Passwörter nie zurückgespiegelt werden
+        # Disable echo so typed passwords are never reflected back
         attrs = termios.tcgetattr(slave)
         attrs[3] &= ~(termios.ECHO | termios.ECHONL)
         termios.tcsetattr(slave, termios.TCSANOW, attrs)
@@ -115,7 +115,7 @@ class ToolJob(QObject):
         except FileNotFoundError:
             os.close(master)
             os.close(slave)
-            return False, f"{self.args[0]} wurde nicht gefunden. Bitte libimobiledevice installieren."
+            return False, f"{self.args[0]} was not found. Please install libimobiledevice."
         os.close(slave)
 
         current = ""
@@ -144,7 +144,7 @@ class ToolJob(QObject):
                 continue
             if not r:
                 if self._proc.poll() is not None:
-                    # Restdaten abholen
+                    # drain remaining output
                     try:
                         r, _, _ = select.select([master], [], [], 0.1)
                     except InterruptedError:
@@ -156,7 +156,7 @@ class ToolJob(QObject):
             try:
                 data = os.read(master, 4096)
             except OSError:
-                break  # EIO: Kindprozess hat das Terminal geschlossen
+                break  # EIO: the child closed the terminal
             if not data:
                 break
             text = data.decode("utf-8", errors="replace")
@@ -166,7 +166,7 @@ class ToolJob(QObject):
                     handle_segment(current, True)
                     current = ""
                 elif ch == "\r":
-                    # Fortschrittsbalken überschreiben die Zeile mit \r
+                    # progress bars overwrite the line using \r
                     if parse_progress(current) is not None:
                         handle_segment(current, False)
                         current = ""
@@ -182,7 +182,7 @@ class ToolJob(QObject):
                         unanswered_prompt = True
                         self.cancel()
                     else:
-                        self.status.emit("Passwort wird übermittelt …")
+                        self.status.emit("Sending password…")
                         os.write(master, answer.encode("utf-8") + b"\n")
                 else:
                     prog = parse_progress(current)
@@ -195,9 +195,9 @@ class ToolJob(QObject):
         self.output = self._redact(self.output)
 
         if self.cancelled and not unanswered_prompt:
-            return False, "Der Vorgang wurde abgebrochen."
+            return False, "The operation was cancelled."
         if unanswered_prompt:
-            return False, "Das Programm hat unerwartet nach einem Passwort gefragt."
+            return False, "The tool unexpectedly asked for a password."
         if is_success(self.kind, self.returncode, self.output):
             return True, ""
         return False, explain_failure(self.output, self.returncode)

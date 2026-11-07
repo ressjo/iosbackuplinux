@@ -1,4 +1,4 @@
-"""Lesender Zugriff auf ein iOS-Backup (unverschlüsselt und verschlüsselt)."""
+"""Read access to an iOS backup (unencrypted and encrypted)."""
 
 from __future__ import annotations
 
@@ -78,7 +78,7 @@ def parse_file_blob(blob: bytes | None) -> FileMeta:
 
 
 def _private_tempdir() -> str:
-    """Privates Arbeitsverzeichnis (0700), bevorzugt im RAM ($XDG_RUNTIME_DIR)."""
+    """Private working directory (0700), preferably in RAM ($XDG_RUNTIME_DIR)."""
     base = os.environ.get("XDG_RUNTIME_DIR")
     if base and os.path.isdir(base):
         try:
@@ -97,13 +97,13 @@ class BackupReader:
             with open(manifest_path, "rb") as fh:
                 self.manifest = plistlib.load(fh)
         except OSError as exc:
-            raise UnsupportedBackup(f"Manifest.plist fehlt: {exc.strerror}") from exc
+            raise UnsupportedBackup(f"Manifest.plist is missing: {exc.strerror}") from exc
         except Exception as exc:
-            raise UnsupportedBackup("Manifest.plist ist beschädigt.") from exc
+            raise UnsupportedBackup("Manifest.plist is damaged.") from exc
         if not os.path.isfile(os.path.join(path, "Manifest.db")):
             if os.path.isfile(os.path.join(path, "Manifest.mbdb")):
-                raise UnsupportedBackup("Backups von iOS 9 und älter werden nicht unterstützt.")
-            raise UnsupportedBackup("Manifest.db fehlt – das Backup ist unvollständig.")
+                raise UnsupportedBackup("Backups from iOS 9 and older are not supported.")
+            raise UnsupportedBackup("Manifest.db is missing – the backup is incomplete.")
         self.encrypted = bool(self.manifest.get("IsEncrypted"))
         self.keybag: Keybag | None = None
         self.entries: list[Entry] = []
@@ -120,12 +120,12 @@ class BackupReader:
         src = os.path.join(self.path, "Manifest.db")
         if self.encrypted:
             if not password:
-                raise WrongPassword("Das Backup ist verschlüsselt – Passwort erforderlich.")
+                raise WrongPassword("This backup is encrypted – a password is required.")
             self.keybag = Keybag(self.manifest["BackupKeyBag"])
             self.keybag.unlock(password)
             mk = self.manifest.get("ManifestKey")
             if not isinstance(mk, bytes) or len(mk) < 8:
-                raise UnsupportedBackup("ManifestKey fehlt im verschlüsselten Backup.")
+                raise UnsupportedBackup("ManifestKey is missing from the encrypted backup.")
             mclass = struct.unpack("<L", mk[:4])[0]
             key = self.keybag.unwrap_for_class(mclass, mk[4:])
             with open(src, "rb") as fh:
@@ -134,7 +134,7 @@ class BackupReader:
             with os.fdopen(fd, "wb") as out:
                 out.write(plain)
         else:
-            # Kopie: SQLite-Sperren auf Netzlaufwerken vermeiden und nichts verändern
+            # work on a copy: avoids SQLite locking on network shares and never modifies the backup
             shutil.copyfile(src, db_copy)
         try:
             self._db = sqlite3.connect(db_copy, check_same_thread=False)
@@ -142,7 +142,7 @@ class BackupReader:
                 "SELECT fileID, domain, relativePath, flags FROM Files").fetchall()
         except sqlite3.DatabaseError as exc:
             self.close()
-            raise UnsupportedBackup(f"Manifest.db kann nicht gelesen werden: {exc}") from exc
+            raise UnsupportedBackup(f"Cannot read Manifest.db: {exc}") from exc
         self.entries = [Entry(r[0], r[1] or "", r[2] or "", int(r[3] or 0)) for r in rows]
 
     def close(self) -> None:
@@ -176,7 +176,7 @@ class BackupReader:
         if not self.encrypted:
             return None
         if meta.encryption_key is None or meta.protection_class is None:
-            return None  # leere Datei
+            return None  # empty file
         return self.keybag.unwrap_for_class(meta.protection_class, meta.encryption_key)
 
     def read_bytes(self, entry: Entry) -> bytes:
@@ -195,12 +195,12 @@ class BackupReader:
         return strip_pkcs7(plain)
 
     def export(self, entry: Entry, dest: str, cancel: threading.Event | None = None) -> None:
-        """Schreibt die (entschlüsselte) Datei nach ``dest`` und übernimmt das Änderungsdatum."""
+        """Write the (decrypted) file to ``dest`` and keep its modification time."""
         meta = self.meta(entry)
         src = self.source_path(entry)
         if not os.path.exists(src):
             if meta.size:
-                raise FileNotFoundError(f"Datei fehlt im Backup: {entry.domain}/{entry.path}")
+                raise FileNotFoundError(f"File missing from backup: {entry.domain}/{entry.path}")
             open(dest, "wb").close()
         elif not self.encrypted:
             shutil.copyfile(src, dest)
@@ -244,12 +244,12 @@ class BackupReader:
                 pass
 
     def temp_copy(self, entry: Entry) -> str:
-        """Entpackt eine Datei ins private Arbeitsverzeichnis (z. B. zum Öffnen)."""
+        """Extract a file into the private working directory (e.g. to open it)."""
         cached = self._temp_files.get(entry.file_id)
         if cached and os.path.exists(cached):
             return cached
         if self._tmp is None:
-            raise RuntimeError("Backup ist nicht geöffnet.")
+            raise RuntimeError("Backup is not open.")
         folder = os.path.join(self._tmp, "files", entry.file_id[:8])
         os.makedirs(folder, mode=0o700, exist_ok=True)
         dest = os.path.join(folder, entry.name or entry.file_id)

@@ -1,11 +1,11 @@
-"""Auswertung der Ausgabe von idevicebackup2 / idevicepair."""
+"""Parsing the output of idevicebackup2 / idevicepair."""
 
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass
 
-# "[=====                    ]  12% (1.2 MB/3.4 GB)"  bzw. "... 100% Finished"
+# "[=====                    ]  12% (1.2 MB/3.4 GB)"  or  "... 100% Finished"
 _PROGRESS_RE = re.compile(r"\[[= >#-]*\]\s*(\d{1,3}(?:\.\d+)?)\s*%\s*(.*)$")
 _SIZES_RE = re.compile(r"\(\s*([^/()]+?)\s*/\s*([^()]+?)\s*\)")
 _PROMPT_RE = re.compile(r"([^\n:]*password[^:\n]*):\s*$", re.IGNORECASE)
@@ -31,13 +31,13 @@ def parse_progress(text: str) -> Progress | None:
 
 
 def find_password_prompt(text: str) -> str | None:
-    """Liefert den Prompt-Text, wenn ``text`` mit einer Passwortabfrage endet."""
+    """Return the prompt text if ``text`` ends with a password prompt."""
     m = _PROMPT_RE.search(text)
     return m.group(1).strip() if m else None
 
 
 def prompt_role(prompt: str) -> str:
-    """Ordnet eine Passwortabfrage einer Rolle zu: ``new``, ``old`` oder ``default``."""
+    """Classify a password prompt as ``new``, ``old`` or ``default``."""
     p = prompt.lower()
     if "new" in p:
         return "new"
@@ -47,29 +47,29 @@ def prompt_role(prompt: str) -> str:
 
 
 _STATUS_MAP = [
-    ("Requesting backup from device", "Backup wird vom Gerät angefordert …"),
-    ("Starting backup", "Backup wird gestartet …"),
-    ("Full backup mode", "Vollständiges Backup"),
-    ("Incremental backup mode", "Inkrementelles Backup"),
-    ("Backup will be encrypted", "Backup wird verschlüsselt"),
-    ("Backup will be unencrypted", "Backup wird unverschlüsselt erstellt"),
-    ("Receiving files", "Dateien werden vom Gerät empfangen …"),
-    ("Sending files", "Dateien werden an das Gerät gesendet …"),
-    ("Starting Restore", "Wiederherstellung wird gestartet …"),
-    ("Restoring", "Wiederherstellung läuft …"),
-    ("Please enter passcode", "Bitte den Code auf dem Gerät eingeben"),
-    ("enter the passcode", "Bitte den Code auf dem Gerät eingeben"),
-    ("Waiting for device", "Warte auf Gerät …"),
-    ("Backup Successful", "Backup erfolgreich abgeschlossen"),
-    ("Restore Successful", "Wiederherstellung erfolgreich abgeschlossen"),
+    ("Requesting backup from device", "Requesting backup from device…"),
+    ("Starting backup", "Starting backup…"),
+    ("Full backup mode", "Full backup"),
+    ("Incremental backup mode", "Incremental backup"),
+    ("Backup will be encrypted", "Backup will be encrypted"),
+    ("Backup will be unencrypted", "Backup will not be encrypted"),
+    ("Receiving files", "Receiving files from device…"),
+    ("Sending files", "Sending files to device…"),
+    ("Starting Restore", "Starting restore…"),
+    ("Restoring", "Restoring…"),
+    ("Please enter passcode", "Enter the passcode on the device"),
+    ("enter the passcode", "Enter the passcode on the device"),
+    ("Waiting for device", "Waiting for device…"),
+    ("Backup Successful", "Backup completed"),
+    ("Restore Successful", "Restore completed"),
 ]
 
 
 def translate_status(line: str) -> str | None:
     low = line.lower()
-    for needle, german in _STATUS_MAP:
+    for needle, text in _STATUS_MAP:
         if needle.lower() in low:
-            return german
+            return text
     return None
 
 
@@ -92,37 +92,36 @@ def is_success(kind: str, returncode: int, output: str) -> bool:
 
 _ERRORS = [
     (("find my", "findmy", "find my iphone"),
-     "„Wo ist?“ / „Mein iPhone suchen“ ist eingeschaltet. Bitte auf dem Gerät unter "
-     "Einstellungen → [Dein Name] → Wo ist? deaktivieren und erneut versuchen."),
+     "Find My is turned on. Turn it off on the device under Settings → [your name] → "
+     "Find My, then try again."),
     (("user denied", "denied the trust"),
-     "Die Kopplung wurde auf dem Gerät abgelehnt. Gerät ab- und wieder anstecken und "
-     "„Vertrauen“ wählen."),
+     "Pairing was declined on the device. Unplug and reconnect it, then tap “Trust”."),
     (("trust dialog", "pairing dialog response pending"),
-     "Bitte auf dem Gerät „Diesem Computer vertrauen?“ mit „Vertrauen“ bestätigen."),
+     "Tap “Trust” on the device when asked “Trust This Computer?”."),
     (("passcode", "password protected"),
-     "Das Gerät ist gesperrt bzw. verlangt den Gerätecode. Bitte entsperren, Code "
-     "eingeben und erneut versuchen."),
+     "The device is locked or asking for its passcode. Unlock it, enter the passcode "
+     "and try again."),
     (("unable to retrieve device list", "usbmuxd"),
-     "Der Dienst usbmuxd läuft nicht. Bitte prüfen: sudo systemctl status usbmuxd"),
+     "The usbmuxd service is not running. Check with: sudo systemctl status usbmuxd"),
     (("no device found",),
-     "Gerät nicht gefunden – bitte USB-Kabel und Verbindung prüfen."),
+     "Device not found. Check the USB cable and connection."),
     (("not paired",),
-     "Gerät ist nicht mit diesem Computer gekoppelt. Bitte zuerst koppeln."),
+     "The device is not paired with this computer. Pair it first."),
     (("no space left", "insufficient free disk space", "not enough space"),
-     "Kein freier Speicherplatz mehr am Ziel (NAS/Platte voll)."),
+     "The backup location is out of free space."),
     (("permission denied", "operation not permitted"),
-     "Keine Schreibrechte im Speicherort. Bei einem NAS-Mount die Optionen uid=/gid= "
-     "bzw. die Freigaberechte prüfen."),
+     "No write permission in the backup location. For a network share, check the "
+     "mount options (uid=/gid=) and share permissions."),
     (("wrong password", "incorrect password", "invalid password", "bad password",
       "password is incorrect", "passwords do not match", "wrong backup password"),
-     "Das Backup-Passwort ist falsch."),
+     "The backup password is incorrect."),
     (("a backup password is required", "no backup password given"),
-     "Für diesen Vorgang wird das Backup-Passwort benötigt."),
+     "This operation requires the backup password."),
     (("cannot open backup directory", "backup directory does not exist",
       "not found in backup directory", "backup directory is not a directory"),
-     "Das Backup wurde im Speicherort nicht gefunden."),
+     "The backup was not found in the backup location."),
     (("aborted", "aborting", "cancelled", "canceled"),
-     "Der Vorgang wurde abgebrochen."),
+     "The operation was cancelled."),
 ]
 
 
@@ -135,12 +134,12 @@ def explain_failure(output: str, returncode: int | None = None) -> str:
     for ln in reversed(lines):
         m = re.match(r"ErrorCode\s+(\d+):\s*(.+)", ln)
         if m:
-            return f"{m.group(2)} (Fehlercode {m.group(1)})"
+            return f"{m.group(2)} (error code {m.group(1)})"
     for ln in reversed(lines):
         if ln.upper().startswith("ERROR") or "failed" in ln.lower():
             return ln
     if lines:
         return lines[-1]
     if returncode is not None:
-        return f"Unbekannter Fehler (Rückgabecode {returncode})."
-    return "Unbekannter Fehler."
+        return f"Unknown error (exit code {returncode})."
+    return "Unknown error."

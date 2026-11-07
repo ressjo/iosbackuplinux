@@ -30,7 +30,7 @@ def test_read_and_scan(tmp_path):
                 date=datetime(2026, 6, 1))
     (tmp_path / "not-a-backup").mkdir()
     entries = scan_backups(str(tmp_path))
-    assert [e.udid for e in entries] == ["UDID-B", "UDID-A"]  # neuestes zuerst
+    assert [e.udid for e in entries] == ["UDID-B", "UDID-A"]  # newest first
     b = entries[0]
     assert b.device_name == "iPad B"
     assert b.encrypted is True

@@ -1,4 +1,4 @@
-"""Persistente Einstellungen (~/.config/iosbackuplinux/iosbackuplinux.conf)."""
+"""Persistent settings (~/.config/iosbackuplinux/iosbackuplinux.conf)."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ class Settings:
 
     @property
     def expected_mount(self) -> str:
-        """Mountpoint, der vor jedem Backup eingehängt sein muss ("" = keine Prüfung)."""
+        """Mount point that must be mounted before each backup ("" = no check)."""
         return str(self._get("storage/expected_mount", ""))
 
     @expected_mount.setter

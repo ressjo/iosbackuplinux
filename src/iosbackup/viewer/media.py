@@ -1,4 +1,4 @@
-"""Fotos & Videos aus der Kamerarolle und deren Vorschaubilder."""
+"""Photos & videos from the camera roll and their thumbnails."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ class MediaItem:
     @property
     def month_key(self) -> str:
         if not self.mtime:
-            return "unbekannt"
+            return "unknown"
         return datetime.fromtimestamp(self.mtime).strftime("%Y-%m")
 
 
@@ -60,19 +60,19 @@ def collect_media(reader: BackupReader) -> list[MediaItem]:
     return items
 
 
-MONTHS = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August",
-          "September", "Oktober", "November", "Dezember"]
+MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August",
+          "September", "October", "November", "December"]
 
 
 def month_label(key: str) -> str:
-    if key == "unbekannt":
-        return "Ohne Datum"
+    if key == "unknown":
+        return "No date"
     year, month = key.split("-")
     return f"{MONTHS[int(month) - 1]} {year}"
 
 
 # ---------------------------------------------------------------------------
-# Vorschaubilder (laufen im Threadpool – nur QImage verwenden, kein QPixmap)
+# Thumbnails (run in the thread pool – use QImage only, never QPixmap)
 # ---------------------------------------------------------------------------
 
 def heif_converter() -> list[str] | None:

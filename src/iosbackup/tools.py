@@ -1,8 +1,7 @@
-"""Aufruf der libimobiledevice-Kommandozeilenwerkzeuge.
+"""Running the libimobiledevice command line tools.
 
-Alle Apple-Protokolle werden von libimobiledevice erledigt; diese App ist eine
-grafische Oberfläche um ``idevice_id``, ``ideviceinfo``, ``idevicepair`` und
-``idevicebackup2``.
+libimobiledevice implements all Apple protocols; this app is a graphical front end
+for ``idevice_id``, ``ideviceinfo``, ``idevicepair`` and ``idevicebackup2``.
 """
 
 from __future__ import annotations
@@ -23,7 +22,7 @@ def missing_tools() -> list[str]:
 
 
 def tool_env() -> dict[str, str]:
-    """Umgebung für Tool-Aufrufe: englische Ausgabe, damit sie auswertbar bleibt."""
+    """Environment for tool calls: force English output so it can be parsed."""
     env = dict(os.environ)
     env["LC_ALL"] = "C"
     env["LANG"] = "C"
@@ -41,7 +40,7 @@ class ToolResult:
 
 
 def run_tool(args: list[str], timeout: float = 20) -> ToolResult:
-    """Führt ein Tool kurz aus und liefert Rückgabecode und kombinierte Ausgabe."""
+    """Run a short-lived tool and return its exit code and combined output."""
     try:
         proc = subprocess.run(
             args,
@@ -53,14 +52,14 @@ def run_tool(args: list[str], timeout: float = 20) -> ToolResult:
             check=False,
         )
     except FileNotFoundError:
-        return ToolResult(127, f"{args[0]}: Programm nicht gefunden")
+        return ToolResult(127, f"{args[0]}: program not found")
     except subprocess.TimeoutExpired:
-        return ToolResult(124, f"{args[0]}: Zeitüberschreitung")
+        return ToolResult(124, f"{args[0]}: timed out")
     return ToolResult(proc.returncode, proc.stdout.decode("utf-8", errors="replace"))
 
 
 def run_plist(args: list[str], timeout: float = 20) -> dict:
-    """Führt ein Tool mit XML-Plist-Ausgabe (``-x``) aus und parst das Ergebnis."""
+    """Run a tool with XML plist output (``-x``) and parse the result."""
     res = run_tool(args, timeout)
     if not res.ok:
         return {}
@@ -76,7 +75,7 @@ def run_plist(args: list[str], timeout: float = 20) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Befehlszeilen für idevicebackup2
+# idevicebackup2 command lines
 # ---------------------------------------------------------------------------
 
 def backup_cmd(udid: str, directory: str, full: bool = False) -> list[str]:
@@ -99,7 +98,7 @@ def restore_cmd(
     cmd = ["idevicebackup2", "-u", udid]
     if source_udid and source_udid != udid:
         cmd += ["-s", source_udid]
-    # -i: Passwörter werden interaktiv (über das PTY) abgefragt, nicht per Argument
+    # -i: passwords are requested interactively (via the PTY), never as arguments
     cmd += ["-i", "restore"]
     if system:
         cmd.append("--system")

@@ -1,4 +1,4 @@
-"""GUI-Test des Backup-Viewers (offscreen)."""
+"""GUI test of the backup browser (offscreen)."""
 import time
 
 import pytest
@@ -36,12 +36,12 @@ def test_viewer_window(qapp, tmp_path, password):
     reader, media, tree = load_backup(path, password)
     win = BackupViewerWindow(reader, media, tree, read_backup(path))
     win.show()
-    win.grab()  # löst das Zeichnen und damit das Laden der Vorschaubilder aus
+    win.grab()  # triggers painting and thus thumbnail loading
     model = win.photos.model
     assert model.rowCount() == 13
     assert wait_until(qapp, lambda: len(model._icons) >= 13)
     cache = tmp_path / "cache" / "iosbackuplinux" / "thumbs" / UDID
-    # Vorschaubilder verschlüsselter Backups landen nie auf der Platte
+    # thumbnails of encrypted backups never touch the disk
     assert cache.is_dir() == (password is None)
 
     # Filter
@@ -49,7 +49,7 @@ def test_viewer_window(qapp, tmp_path, password):
     assert model.rowCount() == 1
     win.photos.type_combo.setCurrentIndex(0)
 
-    # Fotos exportieren
+    # export photos
     win.photos.view.selectAll()
     items = [(m.entry, m.name) for m in win.photos.selected_items()]
     assert len(items) == 13
@@ -61,13 +61,13 @@ def test_viewer_window(qapp, tmp_path, password):
                 if data is not None and rel.startswith("Media/DCIM/")}
     assert {p.name: p.read_bytes() for p in out.iterdir()} == expected
 
-    # Ordner im Dateibrowser exportieren (Struktur bleibt erhalten)
+    # export a folder from the file browser (structure is preserved)
     apps = next(c for c in tree.children if c.name == "Apps")
     items = export_items_for_nodes([apps])
     assert [rel for _, rel in items] == [
         "Apps/net.whatsapp.WhatsApp/Documents/ChatStorage.sqlite"]
 
-    # Suche
+    # search
     win.files.search.setText("notes")
     win.files._apply_search()
     assert win.files.proxy.rowCount() >= 1

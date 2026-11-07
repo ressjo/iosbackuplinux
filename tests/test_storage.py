@@ -44,7 +44,7 @@ def test_check_storage_not_mounted(tmp_path):
     m = write_mounts(tmp_path, ["/dev/sda1 / btrfs rw 0 0"])
     st = check_storage(str(tmp_path), expected_mount="/mnt/nas", mounts_file=m)
     assert st.level == ERROR
-    assert "nicht eingehängt" in st.message
+    assert "not mounted" in st.message
 
 
 def test_check_storage_autofs_not_mounted(tmp_path):

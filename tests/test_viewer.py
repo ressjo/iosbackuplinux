@@ -54,7 +54,7 @@ def test_reader_roundtrip(backup, tmp_path):
 def test_wrong_password(tmp_path):
     path = build_backup(str(tmp_path), UDID, sample_files(2), password="richtig")
     with pytest.raises(WrongPassword):
-        open_reader(path, "falsch")
+        open_reader(path, "wrong")
     with pytest.raises(WrongPassword):
         open_reader(path, None)
 
@@ -82,7 +82,7 @@ def test_media_collection(backup):
     assert len(items) == 13
     assert items[0].name == "IMG_0999.MOV" and items[0].is_video
     assert all(items[i].mtime >= items[i + 1].mtime for i in range(len(items) - 1))
-    assert month_label("2026-03") == "März 2026"
+    assert month_label("2026-03") == "March 2026"
     r.close()
 
 
@@ -91,12 +91,12 @@ def test_tree(backup):
     r = open_reader(path, password)
     root = build_tree(r.entries)
     names = [c.name for c in root.children]
-    assert names[:3] == ["Kamerarolle", "Medien", "Apps"]
+    assert names[:3] == ["Camera Roll", "Media", "Apps"]
     apps = root.children[2]
     assert apps.children[0].name == "net.whatsapp.WhatsApp"
     camera = root.children[0]
     assert sum(1 for _ in camera.iter_files()) == 13
-    assert domain_location("AppDomainGroup-group.x") == ("group.x", "App-Gruppen")
+    assert domain_location("AppDomainGroup-group.x") == ("group.x", "App Groups")
     r.close()
 
 

@@ -1,4 +1,4 @@
-"""Prüfung des Speicherorts (lokal oder gemountetes NAS)."""
+"""Checking the backup location (local disk or mounted network share)."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ OK, WARN, ERROR = "ok", "warn", "error"
 
 
 def _unescape(field: str) -> str:
-    # /proc/mounts kodiert Leerzeichen usw. oktal (\040)
+    # /proc/mounts encodes spaces etc. as octal escapes (\040)
     out, i = [], 0
     while i < len(field):
         if field[i] == "\\" and i + 4 <= len(field) and field[i + 1:i + 4].isdigit():
@@ -45,7 +45,7 @@ def read_mounts(mounts_file: str = "/proc/mounts") -> list[tuple[str, str]]:
 
 
 def find_mount(path: str, mounts_file: str = "/proc/mounts") -> tuple[str, str]:
-    """Liefert (Mountpoint, Dateisystemtyp) für ``path`` (längster Präfix, letzter Eintrag gewinnt)."""
+    """Return (mount point, fs type) for ``path`` (longest prefix, last entry wins)."""
     path = os.path.realpath(path) if os.path.exists(path) else os.path.abspath(path)
     best, best_fs = "/", ""
     for mp, fs in read_mounts(mounts_file):
@@ -56,8 +56,8 @@ def find_mount(path: str, mounts_file: str = "/proc/mounts") -> tuple[str, str]:
 
 
 def suggest_expected_mount(path: str, mounts_file: str = "/proc/mounts") -> str | None:
-    """Wenn der Ordner auf einem Netz-/Wechsellaufwerk liegt, dessen Mountpoint merken."""
-    os.path.exists(path)  # löst ggf. systemd-automount aus
+    """If the folder is on a network/removable drive, return its mount point."""
+    os.path.exists(path)  # triggers systemd automount if configured
     mp, fs = find_mount(path, mounts_file)
     if mp == "/":
         return None
@@ -105,21 +105,20 @@ def check_storage(
     mounts_file: str = "/proc/mounts",
 ) -> StorageStatus:
     if not path:
-        return StorageStatus(path, ERROR, "Kein Speicherort gewählt.")
+        return StorageStatus(path, ERROR, "No backup location selected.")
 
-    # Zugriff löst bei x-systemd.automount das Einhängen aus
+    # accessing the path triggers x-systemd.automount
     exists = os.path.isdir(path)
 
     if expected_mount:
         expected = expected_mount.rstrip("/") or "/"
-        os.path.isdir(expected)  # automount auslösen
+        os.path.isdir(expected)  # trigger automount
         mp, fs = find_mount(expected, mounts_file)
         if mp != expected or fs == "autofs":
             return StorageStatus(
                 path, ERROR,
-                f"Das Laufwerk „{expected_mount}“ ist nicht eingehängt (NAS offline?). "
-                "Es wird nichts gesichert, damit nicht versehentlich auf die lokale "
-                "Festplatte geschrieben wird.",
+                f"{expected_mount} is not mounted (is the NAS offline?). Nothing will be "
+                "backed up, so that nothing is accidentally written to the local disk.",
                 exists=exists, mountpoint=mp, fstype=fs,
             )
 
@@ -128,10 +127,10 @@ def check_storage(
             os.makedirs(path, exist_ok=True)
             exists = True
         except OSError as exc:
-            return StorageStatus(path, ERROR, f"Ordner kann nicht angelegt werden: {exc.strerror}")
+            return StorageStatus(path, ERROR, f"Cannot create folder: {exc.strerror}")
 
     if not exists:
-        return StorageStatus(path, ERROR, "Der Ordner existiert nicht.")
+        return StorageStatus(path, ERROR, "The folder does not exist.")
 
     mp, fs = find_mount(path, mounts_file)
     st = StorageStatus(path, OK, "", exists=True, mountpoint=mp, fstype=fs)
@@ -144,15 +143,15 @@ def check_storage(
     st.writable = _writable(path)
     if not st.writable:
         st.level = ERROR
-        st.message = "Keine Schreibrechte im Speicherort."
+        st.message = "No write permission in this folder."
         return st
 
-    where = f"Netzlaufwerk ({fs}) unter {mp}" if st.is_network else (
-        f"Laufwerk unter {mp}" if mp != "/" else "lokale Festplatte")
-    free = f"{format_bytes(st.free_bytes)} frei" if st.free_bytes is not None else ""
-    st.message = ", ".join(x for x in (where, free) if x)
+    where = f"Network share ({fs}) at {mp}" if st.is_network else (
+        f"Drive at {mp}" if mp != "/" else "Local disk")
+    free = f"{format_bytes(st.free_bytes)} free" if st.free_bytes is not None else ""
+    st.message = " · ".join(x for x in (where, free) if x)
 
     if required_bytes and st.free_bytes is not None and st.free_bytes < required_bytes:
         st.level = WARN
-        st.message += f" – möglicherweise zu wenig Platz (benötigt ca. {format_bytes(required_bytes)})"
+        st.message += f" · may not be enough (about {format_bytes(required_bytes)} needed)"
     return st

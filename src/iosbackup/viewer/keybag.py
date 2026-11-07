@@ -1,12 +1,12 @@
-"""Entschlüsselung verschlüsselter iOS-Backups (iOS 10.2 und neuer).
+"""Decryption of encrypted iOS backups (iOS 10.2 and later).
 
-Ablauf (wie bei iTunes/Finder):
-  * ``Manifest.plist`` enthält den ``BackupKeyBag`` (TLV-Format) und den ``ManifestKey``.
-  * Aus dem Backup-Passwort wird per PBKDF2 (SHA-256 mit DPSL/DPIC, danach SHA-1 mit
-    SALT/ITER) der Passwortschlüssel abgeleitet.
-  * Damit werden die Klassenschlüssel per AES-Key-Unwrap (RFC 3394) entpackt.
-  * Manifest.db und jede Datei sind mit AES-256-CBC (IV = 0) verschlüsselt; der
-    Schlüssel ist mit dem Klassenschlüssel der jeweiligen Schutzklasse verpackt.
+How it works (same as iTunes/Finder):
+  * ``Manifest.plist`` contains the ``BackupKeyBag`` (TLV format) and the ``ManifestKey``.
+  * The passcode key is derived from the backup password via PBKDF2 (SHA-256 with
+    DPSL/DPIC, then SHA-1 with SALT/ITER).
+  * It unwraps the class keys using AES key unwrap (RFC 3394).
+  * Manifest.db and every file are encrypted with AES-256-CBC (IV = 0); each key is
+    wrapped with the class key of its protection class.
 """
 
 from __future__ import annotations
@@ -30,9 +30,9 @@ def _crypto():
     try:
         from cryptography.hazmat.primitives import keywrap
         from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-    except ImportError as exc:  # pragma: no cover - abhängig von der Installation
+    except ImportError as exc:  # pragma: no cover - depends on installation
         raise MissingCrypto(
-            "Für verschlüsselte Backups wird das Paket „python-cryptography“ benötigt:\n"
+            "Encrypted backups require the python-cryptography package:\n"
             "sudo pacman -S python-cryptography") from exc
     return keywrap, Cipher, algorithms, modes
 
@@ -51,7 +51,7 @@ def aes_unwrap(kek: bytes, wrapped: bytes) -> bytes:
     try:
         return keywrap.aes_key_unwrap(kek, wrapped)
     except keywrap.InvalidUnwrap as exc:
-        raise WrongPassword("Schlüssel konnte nicht entpackt werden") from exc
+        raise WrongPassword("Could not unwrap key") from exc
 
 
 def aes_cbc_decryptor(key: bytes):
@@ -119,10 +119,10 @@ class Keybag:
                 try:
                     ck[b"KEY"] = aes_unwrap(key, ck[b"WPKY"])
                 except WrongPassword:
-                    raise WrongPassword("Das Backup-Passwort ist falsch.") from None
+                    raise WrongPassword("The backup password is incorrect.") from None
 
     def unwrap_for_class(self, protection_class: int, wrapped: bytes) -> bytes:
         ck = self.class_keys.get(int(protection_class))
         if ck is None or b"KEY" not in ck:
-            raise KeyError(f"Kein Schlüssel für Schutzklasse {protection_class}")
+            raise KeyError(f"No key for protection class {protection_class}")
         return aes_unwrap(ck[b"KEY"], wrapped)

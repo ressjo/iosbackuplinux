@@ -1,4 +1,4 @@
-"""Erkennung angeschlossener iPhones/iPads und Auslesen der Geräteinformationen."""
+"""Detecting connected iPhones/iPads and reading device information."""
 
 from __future__ import annotations
 
@@ -17,27 +17,32 @@ DENIED = "denied"
 UNPAIRED = "unpaired"
 
 PAIRING_TEXT = {
-    PAIRED: "Gekoppelt",
-    PENDING_TRUST: "Bitte auf dem Gerät „Vertrauen“ tippen",
-    LOCKED: "Bitte Gerät entsperren",
-    DENIED: "Kopplung abgelehnt",
-    UNPAIRED: "Nicht gekoppelt",
+    PAIRED: "Paired",
+    PENDING_TRUST: "Tap “Trust” on the device",
+    LOCKED: "Unlock the device",
+    DENIED: "Pairing declined",
+    UNPAIRED: "Not paired",
 }
 
-# Auswahl gängiger Modelle; unbekannte werden mit dem Produkttyp angezeigt.
+# Common models; unknown ones are shown with their product type.
 MODEL_NAMES = {
     "iPhone12,1": "iPhone 11", "iPhone12,3": "iPhone 11 Pro", "iPhone12,5": "iPhone 11 Pro Max",
-    "iPhone12,8": "iPhone SE (2. Gen.)",
+    "iPhone12,8": "iPhone SE (2nd gen)",
     "iPhone13,1": "iPhone 12 mini", "iPhone13,2": "iPhone 12", "iPhone13,3": "iPhone 12 Pro",
     "iPhone13,4": "iPhone 12 Pro Max",
     "iPhone14,4": "iPhone 13 mini", "iPhone14,5": "iPhone 13", "iPhone14,2": "iPhone 13 Pro",
-    "iPhone14,3": "iPhone 13 Pro Max", "iPhone14,6": "iPhone SE (3. Gen.)",
+    "iPhone14,3": "iPhone 13 Pro Max", "iPhone14,6": "iPhone SE (3rd gen)",
     "iPhone14,7": "iPhone 14", "iPhone14,8": "iPhone 14 Plus", "iPhone15,2": "iPhone 14 Pro",
     "iPhone15,3": "iPhone 14 Pro Max",
     "iPhone15,4": "iPhone 15", "iPhone15,5": "iPhone 15 Plus", "iPhone16,1": "iPhone 15 Pro",
     "iPhone16,2": "iPhone 15 Pro Max",
     "iPhone17,3": "iPhone 16", "iPhone17,4": "iPhone 16 Plus", "iPhone17,1": "iPhone 16 Pro",
     "iPhone17,2": "iPhone 16 Pro Max", "iPhone17,5": "iPhone 16e",
+    "iPad12,1": "iPad (9th gen)", "iPad12,2": "iPad (9th gen)",
+    "iPad13,18": "iPad (10th gen)", "iPad13,19": "iPad (10th gen)",
+    "iPad13,1": "iPad Air (4th gen)", "iPad13,2": "iPad Air (4th gen)",
+    "iPad13,16": "iPad Air (5th gen)", "iPad13,17": "iPad Air (5th gen)",
+    "iPad14,1": "iPad mini (6th gen)", "iPad14,2": "iPad mini (6th gen)",
 }
 
 
@@ -46,7 +51,7 @@ def model_name(product_type: str, device_class: str = "") -> str:
         return MODEL_NAMES[product_type]
     if device_class and product_type:
         return f"{device_class} ({product_type})"
-    return product_type or device_class or "Unbekanntes Gerät"
+    return product_type or device_class or "Unknown device"
 
 
 @dataclass
@@ -88,12 +93,12 @@ class DeviceInfo:
 
 
 def list_devices() -> tuple[list[str], str | None]:
-    """UDIDs aller per USB angeschlossenen Geräte (und ggf. Fehlermeldung)."""
+    """UDIDs of all USB-connected devices (and an error message, if any)."""
     res = run_tool(["idevice_id", "-l"], timeout=10)
     if not res.ok:
         low = res.output.lower()
         if "unable to retrieve device list" in low or "usbmuxd" in low:
-            return [], "usbmuxd läuft nicht – bitte „sudo systemctl start usbmuxd“ ausführen."
+            return [], "usbmuxd is not running. Run: sudo systemctl start usbmuxd"
         if res.returncode in (124, 127):
             return [], res.output.strip()
         return [], None
@@ -128,7 +133,7 @@ def fetch_device_info(udid: str) -> DeviceInfo:
     if info.paired:
         base = run_plist(["ideviceinfo", "-u", udid, "-x"])
     else:
-        # einfache Verbindung ohne Kopplung – liefert nur Grunddaten
+        # simple connection without pairing – basic information only
         base = run_plist(["ideviceinfo", "-u", udid, "-s", "-x"])
     info.name = str(base.get("DeviceName", ""))
     info.product_type = str(base.get("ProductType", ""))
@@ -151,10 +156,10 @@ def fetch_device_info(udid: str) -> DeviceInfo:
 
 
 class DeviceMonitor(QThread):
-    """Pollt im Hintergrund die angeschlossenen Geräte."""
+    """Polls connected devices in the background."""
 
     devicesChanged = Signal(list)   # list[DeviceInfo]
-    listError = Signal(str)         # "" = kein Fehler
+    listError = Signal(str)         # "" = no error
 
     def __init__(self, interval: float = 2.0, parent=None):
         super().__init__(parent)
@@ -166,7 +171,7 @@ class DeviceMonitor(QThread):
         self._busy: set[str] = set()
         self._infos: dict[str, DeviceInfo] = {}
 
-    # --- Steuerung aus dem GUI-Thread -----------------------------------
+    # --- control from the GUI thread ------------------------------------
     def request_refresh(self, udid: str | None = None) -> None:
         with self._lock:
             if udid is None:
@@ -176,7 +181,7 @@ class DeviceMonitor(QThread):
         self._wake.set()
 
     def set_busy(self, udid: str, busy: bool) -> None:
-        """Während eines Backups/Restores keine Abfragen an dieses Gerät schicken."""
+        """Do not query this device while a backup/restore is running."""
         with self._lock:
             if busy:
                 self._busy.add(udid)
@@ -205,7 +210,7 @@ class DeviceMonitor(QThread):
             for gone in set(self._infos) - set(udids):
                 with self._lock:
                     if gone in self._busy:
-                        continue  # z. B. Neustart während Restore
+                        continue  # e.g. reboot during restore
                 del self._infos[gone]
                 changed = True
 

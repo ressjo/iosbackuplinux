@@ -1,28 +1,31 @@
-# iOS Backup für Linux
+# iOS Backup for Linux
 
-Grafische App (Qt/KDE) für **Arch Linux / CachyOS**, um iPhone und iPad per USB zu
-sichern und wiederherzustellen – ähnlich wie früher in iTunes. Der Speicherort ist
-frei wählbar, z. B. ein eingehängtes NAS.
+A desktop app for **Arch Linux / CachyOS** (Qt, fits right into KDE Plasma) that backs up,
+restores and browses iPhone and iPad backups over USB – much like iTunes used to.
+Backups can go to any folder, including a mounted NAS share.
 
-Die eigentliche Kommunikation mit dem Gerät übernimmt
-[libimobiledevice](https://libimobiledevice.org/) (`idevicebackup2`); die Backups haben
-das gleiche Format wie bei iTunes/Finder.
+The device communication is handled by [libimobiledevice](https://libimobiledevice.org/)
+(`idevicebackup2`), so backups use the same format as iTunes and Finder.
 
-## Funktionen
+![Summary of a connected iPhone](docs/screenshots/summary.png)
 
-- Angeschlossene iPhones/iPads werden automatisch erkannt (Name, Modell, iOS, Speicher)
-- Kopplung („Diesem Computer vertrauen?“) direkt aus der App
-- **Backup** mit Fortschrittsanzeige; Folge-Backups übertragen nur Änderungen
-- **Wiederherstellen** – auch ein Backup eines anderen Geräts auf ein neues Gerät
-- **Verschlüsselte Backups** einschalten/ausschalten, Passwort ändern
-  (Passwörter werden nicht gespeichert und nicht als Kommandozeilenargument übergeben)
-- **Backup-Verwaltung**: Liste aller Backups im Speicherort mit Datum, Größe,
-  Verschlüsselung und Status; Ordner öffnen, löschen
-- **Backup-Viewer**: Fotos & Videos der Kamerarolle als Galerie ansehen und exportieren,
-  alle Dateien des Backups (App-Daten, Sprachmemos …) im Dateibrowser durchsuchen –
-  auch bei verschlüsselten Backups
-- **NAS-Schutz**: Backups werden verweigert, wenn das NAS nicht eingehängt ist, damit
-  nicht versehentlich in den leeren Mount-Ordner auf der lokalen Platte geschrieben wird
+## Features
+
+- Detects connected iPhones and iPads (name, model, iOS version, storage)
+- Pairing (“Trust This Computer?”) from within the app
+- **Back up** with progress; later backups only transfer what changed
+- **Restore**, including restoring one device’s backup onto a new device
+- **Encrypted backups**: turn on/off and change the password. Passwords are never stored
+  and never passed on the command line.
+- **Backup list** with date, size, encryption and status; show in folder, delete
+- **Backup browser**: view photos and videos from the camera roll and export them, or
+  browse every file in the backup (app data, voice memos, …) – encrypted backups included
+- **Mount guard**: refuses to back up when the NAS is not mounted, so nothing is written
+  into the empty mount folder on your local disk
+
+| Backups | Browsing a backup |
+| --- | --- |
+| ![Backup list](docs/screenshots/backups.png) | ![Photo browser](docs/screenshots/browser.png) |
 
 ## Installation (CachyOS / Arch)
 
@@ -32,77 +35,89 @@ cd iosbackuplinux/packaging/arch
 makepkg -si
 ```
 
-Das installiert die Abhängigkeiten (`python`, `pyside6`, `libimobiledevice`, `usbmuxd`),
-die App und einen Startmenü-Eintrag „iOS Backup“.
+This installs the dependencies (`python`, `pyside6`, `python-cryptography`,
+`libimobiledevice`, `usbmuxd`), the app and an “iOS Backup” launcher entry.
 
-Ohne Paket direkt aus dem Quellordner starten:
-
-```bash
-sudo pacman -S --needed python pyside6 libimobiledevice usbmuxd
-PYTHONPATH=src python -m iosbackup
-```
-
-`usbmuxd` wird beim Anstecken eines Geräts automatisch per udev gestartet. Falls die App
-meldet, dass usbmuxd nicht läuft:
-
-```bash
-sudo systemctl start usbmuxd
-```
-
-## Benutzung
-
-1. iPhone/iPad per USB anschließen und entsperren.
-2. Auf dem Gerät „Diesem Computer vertrauen?“ → **Vertrauen** (ggf. Code eingeben).
-3. Unten unter **Speicherort** auf „Ändern …“ klicken und den NAS-Ordner wählen.
-4. **Jetzt sichern** klicken.
-
-Zum **Wiederherstellen** auf dem Zielgerät vorher **„Wo ist?“ ausschalten**
-(Einstellungen → [Name] → Wo ist? → Mein iPhone suchen). Das Gerät startet danach neu.
-
-Backups liegen als `<Speicherort>/<UDID>/` vor. Bei verschlüsselten Backups ohne
-Passwort ist keine Wiederherstellung möglich – Passwort gut aufbewahren.
-
-## Backup-Inhalt ansehen
-
-Im Tab **Backups** ein Backup auswählen und **„Inhalt anzeigen …“** klicken (oder
-doppelklicken). Bei verschlüsselten Backups wird das Backup-Passwort abgefragt; das
-Entschlüsseln dauert ein paar Sekunden.
-
-- **Fotos & Videos**: Galerie der Kamerarolle, filterbar nach Typ und Monat. Mehrere
-  auswählen → „Exportieren …“ speichert die Originaldateien (HEIC/JPG/MOV) mit
-  Originaldatum in einen Ordner. Doppelklick öffnet im Standardprogramm.
-- **Dateien**: alle Dateien des Backups nach Bereichen (Kamerarolle, Medien, Apps,
-  System) mit Suche. Dateien oder ganze Ordner lassen sich exportieren.
-
-Für Vorschaubilder von HEIC-Fotos und Videos (optional):
+Optional, for HEIC photo and video thumbnails in the backup browser:
 
 ```bash
 sudo pacman -S --needed kimageformats libheif ffmpegthumbnailer
 ```
 
-**Keine Fotos im Backup?** Wenn auf dem iPhone **iCloud-Fotos** eingeschaltet ist,
-nimmt iOS die Fotos nicht ins lokale Backup auf – sie liegen dann nur in iCloud.
+To run from the source tree without packaging:
 
-Entschlüsselte Inhalte werden nur im Arbeitsspeicher bzw. in einem privaten
-temporären Ordner gehalten und beim Schließen des Viewers gelöscht.
+```bash
+sudo pacman -S --needed python pyside6 python-cryptography libimobiledevice usbmuxd
+PYTHONPATH=src python -m iosbackup
+```
 
-## Hinweise
+`usbmuxd` is started automatically by udev when a device is plugged in. If the app
+reports that it is not running:
 
-- Ein Backup braucht ungefähr so viel Platz wie der belegte Speicher auf dem Gerät.
-- Während Backup/Restore das Gerät nicht trennen. Abbrechen ist beim Backup gefahrlos,
-  beim Restore nicht zu empfehlen.
-- Bei Problemen „Protokoll“ unten rechts aufklappen – dort steht die vollständige
-  Ausgabe von `idevicebackup2`.
+```bash
+sudo systemctl start usbmuxd
+```
 
-## Entwicklung / Tests
+## Usage
 
-Die Tests laufen ohne echtes Gerät: `tests/fake_tools/` simuliert die
-libimobiledevice-Programme (inkl. Passwortabfragen, Fehlern wie „Wo ist?“ und Abbruch).
+1. Connect the iPhone or iPad with a USB cable and unlock it.
+2. When the device asks “Trust This Computer?”, tap **Trust** and enter the passcode.
+3. Under **Backup location**, click **Change…** and pick a folder (for example on your NAS).
+4. Click **Back Up Now**.
+
+To **restore**, first turn off **Find My** on the target device (Settings → [your name] →
+Find My). The device restarts when the restore is finished.
+
+Backups are stored as `<backup location>/<UDID>/`. An encrypted backup cannot be restored
+or browsed without its password, so keep it somewhere safe.
+
+### Browsing a backup
+
+On the **Backups** tab, select a backup and click **Browse…** (or double-click it). For an
+encrypted backup you will be asked for the backup password; decrypting takes a few seconds.
+
+- **Photos & Videos** shows the camera roll, filterable by type and month. Select items
+  and click **Export…** to save the original files (HEIC/JPG/MOV) with their original
+  dates. Double-click opens a file in your default viewer.
+- **Files** shows every file in the backup, grouped into Camera Roll, Media, Apps and
+  System, with search. Export single files or whole folders.
+
+**No photos in the backup?** When **iCloud Photos** is turned on, iOS leaves the photos
+out of local backups – they only live in iCloud.
+
+Decrypted content is kept in memory or in a private temporary folder and deleted when the
+browser window is closed.
+
+### Forgot the backup password?
+
+Neither the device nor Apple can tell you the password. You can remove it on the device
+without losing data: **Settings → General → Transfer or Reset iPhone → Reset →
+Reset All Settings** (*not* “Erase All Content and Settings”). This resets settings such as
+Wi-Fi passwords and the wallpaper and turns off backup encryption. Backups made with the
+old password remain unreadable.
+
+## Notes
+
+- A backup needs roughly as much space as the used storage on the device.
+- Speed is mostly limited by USB 2.0 (Lightning and non-Pro USB-C iPhones) and by writing
+  many small files to a network share.
+- Do not disconnect the device during a backup or restore. Cancelling a backup is safe;
+  cancelling a restore is not recommended.
+- If something goes wrong, open **Log** in the bottom right corner – it shows the full
+  output of `idevicebackup2`.
+
+## Development
+
+The tests run without a real device: `tests/fake_tools/` simulates the libimobiledevice
+programs (including password prompts, errors such as “Find My” and cancellation), and
+`tests/backup_factory.py` generates synthetic – optionally encrypted – backups.
 
 ```bash
 QT_QPA_PLATFORM=offscreen python -m pytest -q
 ```
 
-## Lizenz
+The screenshots above were taken with this simulated device.
+
+## License
 
 MIT
