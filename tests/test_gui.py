@@ -53,3 +53,11 @@ def test_backup_via_gui(qapp, window):
     assert wait_until(qapp, lambda: window.table.rowCount() == 1)
     assert window.table.item(0, 0).text() == "Joshuas iPhone"
     assert "Letztes Backup" in window.lbl_last_backup.text()
+
+    # Inhalt des Backups über das Hauptfenster öffnen
+    window.open_viewer(window.backups[0])
+    assert wait_until(qapp, lambda: window.backups[0].path in window.viewers)
+    viewer = window.viewers[window.backups[0].path]
+    assert viewer.photos.model.rowCount() == 13
+    viewer.close()
+    assert wait_until(qapp, lambda: not window.viewers)

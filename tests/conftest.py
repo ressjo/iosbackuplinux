@@ -5,6 +5,7 @@ import pytest
 
 FAKE_DIR = os.path.join(os.path.dirname(__file__), "fake_tools")
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, os.path.dirname(__file__))
 
 
 @pytest.fixture

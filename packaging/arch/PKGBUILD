@@ -7,7 +7,10 @@ pkgdesc="Grafisches Backup & Restore für iPhone und iPad über USB (libimobiled
 arch=('any')
 url="https://github.com/ressjo/iosbackuplinux"
 license=('MIT')
-depends=('python' 'pyside6' 'libimobiledevice' 'usbmuxd')
+depends=('python' 'pyside6' 'python-cryptography' 'libimobiledevice' 'usbmuxd')
+optdepends=('kimageformats: HEIC-Vorschaubilder im Backup-Viewer'
+            'libheif: HEIC-Vorschaubilder (heif-dec), falls kimageformats fehlt'
+            'ffmpegthumbnailer: Vorschaubilder für Videos im Backup-Viewer')
 makedepends=('python-build' 'python-installer' 'python-setuptools' 'python-wheel')
 checkdepends=('python-pytest')
 source=()

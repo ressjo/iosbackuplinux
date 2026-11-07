@@ -18,6 +18,9 @@ das gleiche Format wie bei iTunes/Finder.
   (Passwörter werden nicht gespeichert und nicht als Kommandozeilenargument übergeben)
 - **Backup-Verwaltung**: Liste aller Backups im Speicherort mit Datum, Größe,
   Verschlüsselung und Status; Ordner öffnen, löschen
+- **Backup-Viewer**: Fotos & Videos der Kamerarolle als Galerie ansehen und exportieren,
+  alle Dateien des Backups (App-Daten, Sprachmemos …) im Dateibrowser durchsuchen –
+  auch bei verschlüsselten Backups
 - **NAS-Schutz**: Backups werden verweigert, wenn das NAS nicht eingehängt ist, damit
   nicht versehentlich in den leeren Mount-Ordner auf der lokalen Platte geschrieben wird
 
@@ -58,6 +61,30 @@ Zum **Wiederherstellen** auf dem Zielgerät vorher **„Wo ist?“ ausschalten**
 
 Backups liegen als `<Speicherort>/<UDID>/` vor. Bei verschlüsselten Backups ohne
 Passwort ist keine Wiederherstellung möglich – Passwort gut aufbewahren.
+
+## Backup-Inhalt ansehen
+
+Im Tab **Backups** ein Backup auswählen und **„Inhalt anzeigen …“** klicken (oder
+doppelklicken). Bei verschlüsselten Backups wird das Backup-Passwort abgefragt; das
+Entschlüsseln dauert ein paar Sekunden.
+
+- **Fotos & Videos**: Galerie der Kamerarolle, filterbar nach Typ und Monat. Mehrere
+  auswählen → „Exportieren …“ speichert die Originaldateien (HEIC/JPG/MOV) mit
+  Originaldatum in einen Ordner. Doppelklick öffnet im Standardprogramm.
+- **Dateien**: alle Dateien des Backups nach Bereichen (Kamerarolle, Medien, Apps,
+  System) mit Suche. Dateien oder ganze Ordner lassen sich exportieren.
+
+Für Vorschaubilder von HEIC-Fotos und Videos (optional):
+
+```bash
+sudo pacman -S --needed kimageformats libheif ffmpegthumbnailer
+```
+
+**Keine Fotos im Backup?** Wenn auf dem iPhone **iCloud-Fotos** eingeschaltet ist,
+nimmt iOS die Fotos nicht ins lokale Backup auf – sie liegen dann nur in iCloud.
+
+Entschlüsselte Inhalte werden nur im Arbeitsspeicher bzw. in einem privaten
+temporären Ordner gehalten und beim Schließen des Viewers gelöscht.
 
 ## Hinweise
 

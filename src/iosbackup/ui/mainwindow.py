@@ -6,7 +6,7 @@ import os
 
 from PySide6.QtCore import QSize, Qt, QTimer, QUrl
 from PySide6.QtGui import QCloseEvent, QDesktopServices, QFont, QIcon
-from PySide6.QtWidgets import (QAbstractItemView, QCheckBox, QFileDialog, QFormLayout,
+from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QFileDialog, QFormLayout,
                                QFrame, QGroupBox, QHBoxLayout, QHeaderView, QLabel,
                                QLineEdit, QListWidget, QListWidgetItem, QMainWindow,
                                QMessageBox, QPlainTextEdit, QProgressBar, QPushButton,
@@ -53,6 +53,7 @@ class MainWindow(QMainWindow):
         self.job: ToolJob | None = None
         self.job_udid: str | None = None
         self._scan_generation = 0
+        self.viewers: dict = {}
 
         self.setWindowTitle(APP_NAME)
         self.setWindowIcon(app_icon())
@@ -225,7 +226,7 @@ class MainWindow(QMainWindow):
         hh.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         hh.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.table.itemSelectionChanged.connect(self._update_actions)
-        self.table.doubleClicked.connect(lambda *_: self.open_selected_backup())
+        self.table.doubleClicked.connect(lambda *_: self.open_viewer())
         v.addWidget(self.table, 1)
 
         row = QHBoxLayout()
@@ -235,11 +236,14 @@ class MainWindow(QMainWindow):
                                            "Auf ausgewähltes Gerät wiederherstellen …")
         self.btn_restore_sel.clicked.connect(
             lambda: self.start_restore(self._selected_backup()))
+        self.btn_view = QPushButton(QIcon.fromTheme("document-preview"), "Inhalt anzeigen …")
+        self.btn_view.setToolTip("Fotos, Videos und Dateien des Backups ansehen und exportieren")
+        self.btn_view.clicked.connect(lambda: self.open_viewer())
         self.btn_open = QPushButton(QIcon.fromTheme("folder-open"), "Ordner öffnen")
         self.btn_open.clicked.connect(self.open_selected_backup)
         self.btn_delete = QPushButton(QIcon.fromTheme("edit-delete"), "Löschen …")
         self.btn_delete.clicked.connect(self.delete_selected_backup)
-        for b in (self.btn_refresh, self.btn_restore_sel, self.btn_open):
+        for b in (self.btn_refresh, self.btn_view, self.btn_restore_sel, self.btn_open):
             row.addWidget(b)
         row.addStretch(1)
         row.addWidget(self.btn_delete)
@@ -536,10 +540,55 @@ class MainWindow(QMainWindow):
         path = b.path if b else self.settings.backup_dir
         QDesktopServices.openUrl(QUrl.fromLocalFile(path))
 
+    # --- Backup-Inhalt ansehen -----------------------------------------
+    def open_viewer(self, entry: BackupEntry | None = None) -> None:
+        b = entry or self._selected_backup()
+        if b is None:
+            return
+        if b.path in self.viewers:
+            win = self.viewers[b.path]
+            win.raise_()
+            win.activateWindow()
+            return
+        password = None
+        if b.encrypted:
+            dlg = PasswordDialog("current", self, "Das Backup ist verschlüsselt. Zum Ansehen wird "
+                                 "das Backup-Passwort benötigt.")
+            if dlg.exec() != PasswordDialog.DialogCode.Accepted:
+                return
+            password = dlg.passwords().get("default")
+        self.status_label.setText("Backup wird geöffnet …" + (
+            " (Entschlüsseln kann einige Sekunden dauern)" if b.encrypted else ""))
+        self.btn_view.setEnabled(False)
+        QApplication.setOverrideCursor(Qt.CursorShape.BusyCursor)
+        from ..viewer.loader import load_backup
+        run_async(load_backup, b.path, password,
+                  on_done=lambda res: self._viewer_loaded(b, res),
+                  on_error=self._viewer_failed)
+
+    def _viewer_loaded(self, backup: BackupEntry, result) -> None:
+        from .viewer_window import BackupViewerWindow
+        QApplication.restoreOverrideCursor()
+        self._update_actions()
+        reader, media, tree = result
+        self.status_label.setText("Bereit.")
+        win = BackupViewerWindow(reader, media, tree, backup, self)
+        win.closed.connect(lambda path: self.viewers.pop(path, None))
+        self.viewers[backup.path] = win
+        win.show()
+
+    def _viewer_failed(self, message: str) -> None:
+        QApplication.restoreOverrideCursor()
+        self._update_actions()
+        self.status_label.setText("Backup konnte nicht geöffnet werden.")
+        QMessageBox.critical(self, "Backup öffnen", message)
+
     def delete_selected_backup(self) -> None:
         b = self._selected_backup()
         if b is None or self._busy():
             return
+        if b.path in self.viewers:
+            self.viewers[b.path].close()
         answer = QMessageBox.warning(
             self, "Backup löschen",
             f"Backup von „{b.device_name or b.udid}“ ({format_datetime(b.last_backup)}) "
@@ -582,6 +631,7 @@ class MainWindow(QMainWindow):
         self.btn_restore_sel.setEnabled(ready and selected is not None)
         self.btn_delete.setEnabled(not busy and selected is not None)
         self.btn_open.setEnabled(True)
+        self.btn_view.setEnabled(selected is not None)
         self.btn_choose.setEnabled(not busy)
         self.cb_guard.setEnabled(not busy and not self.cb_guard.isHidden())
 
@@ -788,5 +838,7 @@ class MainWindow(QMainWindow):
             self.job.wait(25)
         self.settings.geometry = self.saveGeometry()
         self.settings.sync()
+        for viewer in list(self.viewers.values()):
+            viewer.close()
         self.monitor.stop()
         event.accept()

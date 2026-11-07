@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Simuliert idevicebackup2 (Ausgabeformat wie das Original)."""
 import os, plistlib, sys, time
-from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 import _fake_common as c
 
@@ -61,24 +60,23 @@ if cmd == "backup":
             print("Backup Failed (Error Code 105).")
             sys.exit(255)
     print()
-    target = os.path.join(directory, udid)
-    os.makedirs(target, exist_ok=True)
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
     dev = c.device(udid)
-    with open(os.path.join(target, "Info.plist"), "wb") as fh:
-        plistlib.dump({"Device Name": dev["DeviceName"], "Display Name": dev["DeviceName"],
-                       "Product Type": dev["ProductType"], "Product Version": dev["ProductVersion"],
-                       "Serial Number": dev["SerialNumber"], "Target Identifier": udid,
-                       "Unique Identifier": udid, "Last Backup Date": now}, fh)
-    with open(os.path.join(target, "Manifest.plist"), "wb") as fh:
-        plistlib.dump({"IsEncrypted": st["encrypted"], "Date": now, "Version": "10.0"}, fh,
-                      fmt=plistlib.FMT_BINARY)
-    with open(os.path.join(target, "Status.plist"), "wb") as fh:
-        plistlib.dump({"SnapshotState": "finished", "Date": now, "IsFullBackup": False}, fh,
-                      fmt=plistlib.FMT_BINARY)
-    os.makedirs(os.path.join(target, "ab"), exist_ok=True)
-    with open(os.path.join(target, "ab", "ab12cd34ef"), "wb") as fh:
-        fh.write(os.urandom(4096))
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+    import backup_factory as bf
+    w, h = (int(x) for x in os.environ.get("FAKE_IMAGE_SIZE", "96x72").split("x"))
+    try:
+        bf.build_backup(directory, udid, bf.sample_files(image_size=(w, h)),
+                        password=st["password"] if st["encrypted"] else None,
+                        device_name=dev["DeviceName"], product_type=dev["ProductType"],
+                        product_version=dev["ProductVersion"])
+    except ImportError:  # cryptography fehlt: nur Metadaten schreiben
+        bf.build_backup(directory, udid, [], password=None, device_name=dev["DeviceName"])
+        mp = os.path.join(directory, udid, "Manifest.plist")
+        with open(mp, "rb") as fh:
+            m = plistlib.load(fh)
+        m["IsEncrypted"] = st["encrypted"]
+        with open(mp, "wb") as fh:
+            plistlib.dump(m, fh)
     print("Received 1234 files from device.")
     print("Backup Successful.")
     sys.exit(0)
